@@ -1,0 +1,7 @@
+*.md
+.vscode
+LICENSE
+Makefile
+acl.yaml
+build
+temp

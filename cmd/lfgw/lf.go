@@ -1,0 +1,78 @@
+package main
+
+import (
+	"fmt"
+
+	"github.com/VictoriaMetrics/metricsql"
+)
+
+// replaceLFByName drops all label filters with the matching name and then appends the supplied filter.
+func (app *application) replaceLFByName(filters []metricsql.LabelFilter, newFilter metricsql.LabelFilter) []metricsql.LabelFilter {
+	newFilters := make([]metricsql.LabelFilter, 0, cap(filters)+1)
+
+	// Drop all label filters with the matching name
+	for _, filter := range filters {
+		if filter.Label != newFilter.Label {
+			newFilters = append(newFilters, filter)
+		}
+	}
+
+	newFilters = append(newFilters, newFilter)
+	return newFilters
+}
+
+// appendOrMergeRegexpLF appends label filter or merges its value in case it's a regexp with the same name
+// and of the same type (negative / positive).
+func (app *application) appendOrMergeRegexpLF(filters []metricsql.LabelFilter, newFilter metricsql.LabelFilter) []metricsql.LabelFilter {
+	newFilters := make([]metricsql.LabelFilter, 0, cap(filters)+1)
+
+	// Helps to determine whether we found a similar regexp (only with
+	// different value)
+	foundMatch := false
+
+	for _, filter := range filters {
+		// Merge label filter's value
+		if filter.Label == newFilter.Label && filter.IsRegexp && filter.IsNegative == newFilter.IsNegative {
+			foundMatch = true
+			// Merge only negative regexps, because merge for positive regexp will expose data
+			if filter.Value != "" && filter.IsNegative {
+				filter.Value = fmt.Sprintf("%s|%s", filter.Value, newFilter.Value)
+			} else {
+				filter.Value = newFilter.Value
+			}
+		}
+		newFilters = append(newFilters, filter)
+	}
+
+	if !foundMatch {
+		newFilters = append(newFilters, newFilter)
+	}
+	return newFilters
+}
+
+// modifyMetricExpr walks through the query and modifies only metricsql.Expr based on the supplied label filter.
+func (app *application) modifyMetricExpr(query string, newFilter metricsql.LabelFilter) (string, error) {
+	expr, err := metricsql.Parse(query)
+	if err != nil {
+		return "", err
+	}
+	// We cannot pass any extra parameters, so we need to use a closure
+	// to say which label filter to add
+	modifyLabelFilter := func(expr metricsql.Expr) {
+		switch me := expr.(type) {
+		case *metricsql.MetricExpr:
+			if newFilter.IsRegexp {
+				me.LabelFilters = app.appendOrMergeRegexpLF(me.LabelFilters, newFilter)
+			} else {
+				me.LabelFilters = app.replaceLFByName(me.LabelFilters, newFilter)
+			}
+		}
+	}
+
+	// Update label filters
+	metricsql.VisitAll(expr, modifyLabelFilter)
+
+	app.debugLog.Printf("Rewrote query %s to query %s", query, expr.AppendString(nil))
+
+	return string(expr.AppendString(nil)), nil
+}
