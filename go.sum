@@ -36,8 +36,12 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/VictoriaMetrics/metrics v1.12.2/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
 github.com/VictoriaMetrics/metrics v1.14.0 h1:yvyEVo7cPN2Hv+Hrm1zPTA1f/squmEZTq6xtPH/8F64=
 github.com/VictoriaMetrics/metrics v1.14.0/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
+github.com/VictoriaMetrics/metrics v1.17.2 h1:9zPJ7DPfxdJWshOGLPLpAtPL0ZZ9AeUyQC3fIqG6Lvo=
+github.com/VictoriaMetrics/metrics v1.17.2/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
 github.com/VictoriaMetrics/metricsql v0.10.1 h1:wLl/YbMmBGFPyLKMfqNLC333iygibosSM5iSvlH2B4A=
 github.com/VictoriaMetrics/metricsql v0.10.1/go.mod h1:ylO7YITho/Iw6P71oEaGyHbO94bGoGtzWfLGqFhMIg8=
+github.com/VictoriaMetrics/metricsql v0.14.0 h1:XGbpZJVskUPJFo2C7vG6ATxXBwkBFPe7EWZXB2HZt2U=
+github.com/VictoriaMetrics/metricsql v0.14.0/go.mod h1:ylO7YITho/Iw6P71oEaGyHbO94bGoGtzWfLGqFhMIg8=
 github.com/caarlos0/env/v6 v6.5.0 h1:f4C7ZQwm0nRFo8vETCQviLUOtOlOwsOhgc/QXp0zrTM=
 github.com/caarlos0/env/v6 v6.5.0/go.mod h1:5ZqhjfyF261xGkANuSuMQ1FeA9ikA3wzDY64wSd9k8k=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=

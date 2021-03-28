@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.3.0
+
+* Added support for POST requests;
+* Updated metricsql from `v0.10.1` to `v0.14.0`.
+
 ## 0.2.3
 
 * Added `/federate` to a list of requests that should be rewritten.
