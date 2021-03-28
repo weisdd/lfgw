@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -75,4 +76,30 @@ func (app *application) modifyMetricExpr(query string, newFilter metricsql.Label
 	app.debugLog.Printf("Rewrote query %s to query %s", query, expr.AppendString(nil))
 
 	return string(expr.AppendString(nil)), nil
+}
+
+// prepareQueryParams rewrites GET/POST "query" and "match" parameters to filter out metrics.
+func (app *application) prepareQueryParams(params *url.Values, lf metricsql.LabelFilter) (string, error) {
+	newParams := &url.Values{}
+
+	for k, vv := range *params {
+		switch k {
+		case "query", "match[]":
+			for _, v := range vv {
+				{
+					newVal, err := app.modifyMetricExpr(v, lf)
+					if err != nil {
+						return "", err
+					}
+					newParams.Add(k, newVal)
+				}
+			}
+		default:
+			for _, v := range vv {
+				newParams.Add(k, v)
+			}
+		}
+	}
+
+	return newParams.Encode(), nil
 }
