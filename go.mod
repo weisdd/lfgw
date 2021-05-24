@@ -3,8 +3,8 @@ module gitlab.rshbdev.ru/rshbintech/integrations/ckpr/infra/images/lfgw
 go 1.16
 
 require (
-	github.com/VictoriaMetrics/metrics v1.14.0 // indirect
-	github.com/VictoriaMetrics/metricsql v0.10.1
+	github.com/VictoriaMetrics/metrics v1.17.2 // indirect
+	github.com/VictoriaMetrics/metricsql v0.14.0
 	github.com/caarlos0/env/v6 v6.5.0
 	github.com/coreos/go-oidc/v3 v3.0.0
 	github.com/golang/protobuf v1.4.3 // indirect

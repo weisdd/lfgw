@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -20,11 +21,11 @@ func (app *application) healthzMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// prohibitedMethods forbids all the methods aside from "GET".
+// prohibitedMethods forbids all the methods aside from "GET" and "POST".
 func (app *application) prohibitedMethodsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			w.Header().Set("Allow", http.MethodGet)
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			w.Header().Set("Allow", fmt.Sprintf("%s, %s", http.MethodGet, http.MethodPost))
 			app.clientError(w, http.StatusMethodNotAllowed)
 			return
 		}
@@ -133,14 +134,36 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			return
 		}
 
-		rawQueryParams, err := app.prepareRawQueryParams(r, lf)
+		err := r.ParseForm()
 		if err != nil {
 			app.errorLog.Printf("%s", err)
 			app.clientError(w, http.StatusBadRequest)
 			return
 		}
 
-		r.URL.RawQuery = rawQueryParams
+		// Adjust GET params
+		getParams := r.URL.Query()
+		newGetParams, err := app.prepareQueryParams(&getParams, lf)
+		if err != nil {
+			app.errorLog.Printf("%s", err)
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+		r.URL.RawQuery = newGetParams
+
+		// Adjust POST params
+		// Partially inspired by https://github.com/bitsbeats/prometheus-acls/blob/master/internal/labeler/middleware.go
+		if r.Method == http.MethodPost {
+			newPostParams, err := app.prepareQueryParams(&r.PostForm, lf)
+			if err != nil {
+				app.errorLog.Printf("%s", err)
+				app.clientError(w, http.StatusBadRequest)
+				return
+			}
+			newBody := strings.NewReader(newPostParams)
+			r.ContentLength = newBody.Size()
+			r.Body = io.NopCloser(newBody)
+		}
 
 		next.ServeHTTP(w, r)
 	})
