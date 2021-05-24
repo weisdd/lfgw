@@ -1,0 +1,20 @@
+version: '3'
+
+env:
+  TARGET: ./...
+
+tasks:
+  all:
+    - task: test
+    - task: lint
+
+  test:
+    cmds:
+      - go test $TARGET
+
+  lint:
+    cmds:
+      - go vet $TARGET
+      - golint $TARGET
+      - golangci-lint run $TARGET
+      - gosec -quiet $TARGET
