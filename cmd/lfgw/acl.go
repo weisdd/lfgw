@@ -30,7 +30,7 @@ func (a *ACL) toSlice(str string) ([]string, error) {
 
 		for _, ch := range s {
 			if unicode.IsSpace(ch) {
-				return nil, fmt.Errorf("Line should not contain spaces within individual elements (%q)", str)
+				return nil, fmt.Errorf("line should not contain spaces within individual elements (%q)", str)
 			}
 		}
 
@@ -40,7 +40,7 @@ func (a *ACL) toSlice(str string) ([]string, error) {
 	}
 
 	if len(buffer) == 0 {
-		return nil, fmt.Errorf("Line has to contain at least one valid element (%q)", str)
+		return nil, fmt.Errorf("line has to contain at least one valid element (%q)", str)
 	}
 
 	return buffer, nil
@@ -123,7 +123,7 @@ func (app *application) getUserRole(roles []string) (string, error) {
 			return role, nil
 		}
 	}
-	return "", fmt.Errorf("No matching role found")
+	return "", fmt.Errorf("no matching role found")
 }
 
 // hasFullaccessRole says whether a role has offers a full access as per an acl spec.

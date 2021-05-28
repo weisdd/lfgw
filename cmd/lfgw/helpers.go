@@ -39,5 +39,5 @@ func (app *application) getRawAccessToken(r *http.Request) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("No bearer token found")
+	return "", fmt.Errorf("no bearer token found")
 }
