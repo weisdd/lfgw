@@ -39,7 +39,7 @@ type application struct {
 
 type contextKey string
 
-const contextKeyHasFullaccessRole = contextKey("hasFullaccessRole")
+const contextKeyHasFullaccess = contextKey("hasFullaccess")
 const contextKeyLabelFilter = contextKey("labelFilter")
 
 func main() {

@@ -1,11 +1,12 @@
-# LFGW
+# Label Filter Gateway (LFGW)
 
-lfgw is a trivial reverse proxy based on `httputil` and `VictoriaMetrics/metricsql` with a purpose of dynamically rewriting requests to Prometheus-like backends.
+LFGW is a trivial reverse proxy based on `httputil` and `VictoriaMetrics/metricsql` with a purpose of dynamically rewriting requests to Prometheus-like backends.
 
 More specifically, it manipulates label filters in metric expressions to reduce the scope of metrics exposed to an end user.
 
-## Key functions
+## Key features
 
+* a user is not restricted to just one LFGW-role, you are free to specify a few;
 * non-opinionated proxying of requests with valid jwt tokens - there's Prometheus to decide whether request is valid or not;
 * ACL-based request rewrites with implicit deny;
 * supports Victoria Metrics' PromQL extensions;
@@ -62,6 +63,7 @@ Pluses:
 
 Minuses:
 
+* a user cannot have multiple roles (`When you have multiple roles, the first one that is mentioned in prometheus-acls will be used.`);
 * based on Prometheus library, so might not support some of Victoria Metrics' extensions;
 * does not allow to filter out requests to sensitive endpoints (like `/admin/tsdb`);
 * does not rewrite requests to `/federate` endpoint (at least, at the time of writing);
@@ -96,7 +98,7 @@ OIDC roles are expected to be present in `roles` within a jwt token.
 |                      | `OIDC_REALM_URL`    |               | OIDC Realm URL, e.g. `https://auth.microk8s.localhost/auth/realms/cicd` |
 |                      | `OIDC_CLIENT_ID`    |               | OIDC Client ID (1*)                                          |
 
-(1*): since it's grafana who obtains jwt-tokens in the first place, the specified client id must also be present in the forwarded token (the `audience` field). To put it simply, better to use the same client id for both grafana and lfgw.
+(1*): since it's grafana who obtains jwt-tokens in the first place, the specified client id must also be present in the forwarded token (the `audience` field). To put it simply, better to use the same client id for both Grafana and LFGW.
 
 ### acl.yaml syntax
 
@@ -109,11 +111,12 @@ role: namespace, namespace2
 For example:
 
 ```yaml
-team0: .*              # all metrics
-team1: minio           # only those with namespace="minio"
-team2: min.*           # only those matching namespace=~"min.*"
-team3: minio, stolon   # only those matching namespace=~"^(minio|stolon)$"
-team4: min.*, stolon   # only those matching namespace=~"^(min.*|stolon)$"
+team0: .*                # all metrics
+team1: min.*, .*, stolon # all metrics, it's the same as .*
+team2: minio             # only those with namespace="minio"
+team3: min.*             # only those matching namespace=~"min.*"
+team4: minio, stolon     # only those matching namespace=~"^(minio|stolon)$"
+team5: min.*, stolon     # only those matching namespace=~"^(min.*|stolon)$"
 ```
 
 To summarize, here are the key principles used for rewriting requests:
@@ -124,3 +127,12 @@ To summarize, here are the key principles used for rewriting requests:
 * `min.*` -  positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"mi.*"` is added;
 * `minio, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"^(minio|stolon)$"` is added;
 * `min.*, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"^(min.*|stolon)$"` is added.
+
+Note: a user is free to have multiple roles matching the contents of `acl.yaml`. Basically, there are 3 cases:
+
+* one role
+  => a prepopulated LF is returned;
+* multiple roles, one of which gives full access
+  => a prepopulated LF, corresponding to the full access role, is returned;
+* multiple "limited" roles
+  => definitions of all those roles are merged together, and then LFGW generates a new LF. The process is the same as if this meta-definition was loaded through `acl.yaml`.

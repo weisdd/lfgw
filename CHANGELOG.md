@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.4.0
+
+* Added support for multiple roles (previously, only the first one would be picked).
+
 ## 0.3.0
 
 * Added support for POST requests;
