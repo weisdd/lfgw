@@ -8,7 +8,7 @@ import (
 )
 
 func TestACL_ToSlice(t *testing.T) {
-	acl := &ACL{false, metricsql.LabelFilter{}}
+	acl := &ACL{false, metricsql.LabelFilter{}, ""}
 
 	tests := []struct {
 		name string
@@ -62,7 +62,7 @@ func TestACL_ToSlice(t *testing.T) {
 }
 
 func TestACL_PrepareLF(t *testing.T) {
-	acl := &ACL{false, metricsql.LabelFilter{}}
+	acl := &ACL{false, metricsql.LabelFilter{}, ""}
 
 	tests := []struct {
 		name string

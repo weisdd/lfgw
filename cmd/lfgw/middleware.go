@@ -90,17 +90,23 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		userRole, err := app.getUserRole(claims.Roles)
+		userRoles, err := app.getUserRoles(claims.Roles)
 		if err != nil {
 			app.errorLog.Printf("%s (%s, %s)", err, claims.Username, claims.Email)
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
 
-		hasFullaccessRole := app.hasFullaccessRole(userRole)
-		lf := app.getLF(userRole)
+		lf, err := app.getLF(userRoles)
+		if err != nil {
+			app.errorLog.Printf("%s (%s, %s)", err, claims.Username, claims.Email)
+			app.clientErrorMessage(w, http.StatusUnauthorized, err)
+			return
+		}
 
-		ctx = context.WithValue(ctx, contextKeyHasFullaccessRole, hasFullaccessRole)
+		hasFullaccess := app.HasFullaccessValue(lf.Value)
+
+		ctx = context.WithValue(ctx, contextKeyHasFullaccess, hasFullaccess)
 		ctx = context.WithValue(ctx, contextKeyLabelFilter, lf)
 		r = r.WithContext(ctx)
 
@@ -121,8 +127,8 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		}
 
 		// Since the value is false by default, we don't really care if it exists in the context
-		hasFullaccessRole, _ := r.Context().Value(contextKeyHasFullaccessRole).(bool)
-		if hasFullaccessRole {
+		hasFullaccess, _ := r.Context().Value(contextKeyHasFullaccess).(bool)
+		if hasFullaccess {
 			app.debugLog.Print("Request is passed through")
 			next.ServeHTTP(w, r)
 			return
