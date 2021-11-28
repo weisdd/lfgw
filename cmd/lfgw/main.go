@@ -25,13 +25,12 @@ type application struct {
 	proxy           *httputil.ReverseProxy
 	verifier        *oidc.IDTokenVerifier
 	Debug           bool          `env:"DEBUG" envDefault:"false"`
-	LFGWMode        string        `env:"LFGW_MODE" envDefault:"oidc"` //TODO: only oidc supported at the moment
 	UpstreamURL     *url.URL      `env:"UPSTREAM_URL,required"`
 	SafeMode        bool          `env:"SAFE_MODE" envDefault:"true"`
 	SetProxyHeaders bool          `env:"SET_PROXY_HEADERS" envDefefault:"false"`
-	ACLPath         string        `env:"ACL_PATH" envDefault:"./acl.yaml"` //TODO: should be required only for oidc
-	OIDCRealmURL    string        `env:"OIDC_REALM_URL,required"`          //TODO: should be required only for oidc
-	OIDCClientID    string        `env:"OIDC_CLIENT_ID,required"`          //TODO: should be required only for oidc
+	ACLPath         string        `env:"ACL_PATH" envDefault:"./acl.yaml"`
+	OIDCRealmURL    string        `env:"OIDC_REALM_URL,required"`
+	OIDCClientID    string        `env:"OIDC_CLIENT_ID,required"`
 	Port            int           `env:"PORT" envDefault:"8080"`
 	ReadTimeout     time.Duration `env:"READ_TIMEOUT" envDefault:"10s"`
 	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT" envDefault:"10s"`
@@ -56,11 +55,6 @@ func main() {
 	err := env.Parse(app)
 	if err != nil {
 		app.errorLog.Fatalf("%+v\n", err)
-	}
-
-	// TODO: remove when other modes are ported back
-	if app.LFGWMode != "oidc" {
-		app.errorLog.Fatal("Only oidc mode is currently supported")
 	}
 
 	if !app.Debug {

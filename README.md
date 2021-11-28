@@ -18,8 +18,7 @@ More specifically, it manipulates label filters in metric expressions to reduce 
 
 ## Current limitations
 
-* there's no OIDC callback, so it can only proxy requests that already have a jwt token;
-* other modes (POSITIVE_REGEXP, NEGATIVE_REGEXP, NAMESPACE) are deprecated.
+* there's no OIDC callback, so it can only proxy requests that already have a jwt token.
 
 ## TODO
 
