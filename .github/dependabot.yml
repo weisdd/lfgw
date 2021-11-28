@@ -1,0 +1,13 @@
+version: 2
+
+updates:
+  ## TODO: enabled after actions are added
+  # - package-ecosystem: "github-actions"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "daily"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "daily"
