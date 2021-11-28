@@ -60,8 +60,7 @@ func (app *application) modifyMetricExpr(query string, newFilter metricsql.Label
 	// We cannot pass any extra parameters, so we need to use a closure
 	// to say which label filter to add
 	modifyLabelFilter := func(expr metricsql.Expr) {
-		switch me := expr.(type) {
-		case *metricsql.MetricExpr:
+		if me, ok := expr.(*metricsql.MetricExpr); ok {
 			if newFilter.IsRegexp {
 				me.LabelFilters = app.appendOrMergeRegexpLF(me.LabelFilters, newFilter)
 			} else {

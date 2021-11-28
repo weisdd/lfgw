@@ -126,9 +126,8 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			return
 		}
 
-		// Since the value is false by default, we don't really care if it exists in the context
-		hasFullaccess, _ := r.Context().Value(contextKeyHasFullaccess).(bool)
-		if hasFullaccess {
+		hasFullaccess, ok := r.Context().Value(contextKeyHasFullaccess).(bool)
+		if ok && hasFullaccess {
 			app.debugLog.Print("Request is passed through")
 			next.ServeHTTP(w, r)
 			return

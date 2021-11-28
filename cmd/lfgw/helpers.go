@@ -17,7 +17,7 @@ func (app *application) clientError(w http.ResponseWriter, status int) {
 	http.Error(w, http.StatusText(status), status)
 }
 
-// clientError sends responses like 400 "Bad Request" to the user with an additional message.
+// clientErrorMessage sends responses like 400 "Bad Request" to the user with an additional message.
 func (app *application) clientErrorMessage(w http.ResponseWriter, status int, err error) {
 	http.Error(w, http.StatusText(status), status)
 	fmt.Fprintf(w, "%s", err)
