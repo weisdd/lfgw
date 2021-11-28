@@ -1,0 +1,17 @@
+linters:
+  enable:
+    - gocritic
+    - gosec
+    ## TODO: clean the list
+    # - errorlint
+    # - gofmt
+    # - goimports
+    # - prealloc
+    # - revive
+    # - unconvert
+    # - unparam
+    # - whitespace
+
+linters-settings:
+  gosimple:
+    go: "1.17"
