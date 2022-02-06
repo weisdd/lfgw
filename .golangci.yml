@@ -3,15 +3,17 @@ linters:
     - gocritic
     - gosec
     ## TODO: clean the list
-    # - errorlint
-    # - gofmt
-    # - goimports
+    - gofmt
+    - goimports
+    - gocyclo
+    - goconst
     # - prealloc
-    # - revive
-    # - unconvert
+    - revive
+    - unconvert
     # - unparam
-    # - whitespace
 
 linters-settings:
   gosimple:
     go: "1.17"
+  gocyclo:
+    min-complexity: 10
