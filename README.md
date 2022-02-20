@@ -25,6 +25,10 @@ More specifically, it manipulates label filters in metric expressions to reduce 
 
 Similar projects are described [here](docs/similar-projects.md).
 
+## Docker images
+
+Docker images are published on [quay.io/weisdd/lfgw](https://quay.io/repository/weisdd/lfgw?tab=tags&tag=latest).
+
 ## Configuration
 
 OIDC roles are expected to be present in `roles` within a jwt token.
@@ -102,4 +106,5 @@ Note: a user is free to have multiple roles matching the contents of `acl.yaml`.
 * configurable JMESPath for the `roles` attribute;
 * OIDC callback to support for proxying Prometheus web-interface itself;
 * structured logging (it'll require an intermediate interface for logging `httputil`'s error logs);
-* simple deduplication if there is any performance issue (another option: use `trickster` for request optimizations).
+* simple deduplication if there is any performance issue (another option: use `trickster` for request optimizations);
+* add a helm chart.
