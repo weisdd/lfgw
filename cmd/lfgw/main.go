@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -59,7 +59,7 @@ func main() {
 	}
 
 	if !app.Debug {
-		app.debugLog.SetOutput(ioutil.Discard)
+		app.debugLog.SetOutput(io.Discard)
 	}
 
 	app.ACLMap, err = app.loadACL()

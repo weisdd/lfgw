@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 	"testing"
 
@@ -10,9 +10,9 @@ import (
 
 func TestApplication_modifyMetricExpr(t *testing.T) {
 	app := &application{
-		errorLog: log.New(ioutil.Discard, "", 0),
-		infoLog:  log.New(ioutil.Discard, "", 0),
-		debugLog: log.New(ioutil.Discard, "", 0),
+		errorLog: log.New(io.Discard, "", 0),
+		infoLog:  log.New(io.Discard, "", 0),
+		debugLog: log.New(io.Discard, "", 0),
 	}
 
 	newFilterPlain := metricsql.LabelFilter{

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"strings"
 	"unicode"
@@ -97,7 +97,7 @@ func (a *ACL) PrepareLF(ns string) (metricsql.LabelFilter, error) {
 func (app *application) loadACL() (ACLMap, error) {
 	aclMap := make(ACLMap)
 
-	yamlFile, err := ioutil.ReadFile(app.ACLPath)
+	yamlFile, err := os.ReadFile(app.ACLPath)
 	if err != nil {
 		return aclMap, err
 	}
