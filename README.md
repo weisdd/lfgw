@@ -34,7 +34,7 @@ OIDC roles are expected to be present in `roles` within a jwt token.
 | Module               | Variable               | Default Value | Description                                                  |
 | -------------------- | ---------------------- | ------------- | ------------------------------------------------------------ |
 | **General settings** |                        |               |                                                              |
-|                      | `OPTIMIZE_EXPRESSIONS` | `true`        | Whether to automatically optimize expressions. [More details](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) |
+|                      | `OPTIMIZE_EXPRESSIONS` | `true`        | Whether to automatically optimize expressions for non-full access requests. [More details](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) |
 |                      |                        |               |                                                              |
 | **Logging**          |                        |               |                                                              |
 |                      | `DEBUG`                | `false`       | Whether to print out debug log messages.                     |

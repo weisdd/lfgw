@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ${{ github.ref }}
+
 jobs:
   lint-test:
     runs-on: ubuntu-latest
