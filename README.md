@@ -17,10 +17,6 @@ More specifically, it manipulates label filters in metric expressions to reduce 
 * requests to sensitive endpoints are blocked by default;
 * requests to both `/api/*` and `/federate` endpoints are protected (=rewritten).
 
-## Current limitations
-
-* there's no OIDC callback, so it can only proxy requests that already have a jwt token.
-
 ## Similar projects
 
 Similar projects are described [here](docs/similar-projects.md).
