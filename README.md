@@ -2,7 +2,7 @@
 
 LFGW is a trivial reverse proxy based on `httputil` and `VictoriaMetrics/metricsql` with a purpose of dynamically rewriting requests to Prometheus-like backends.
 
-More specifically, it manipulates label filters in metric expressions to reduce the scope of metrics exposed to an end user.
+More specifically, it manipulates label filters in metric expressions to reduce the scope of metrics exposed to an end user based on user's OIDC-roles.
 
 ## Key features
 
@@ -21,53 +21,9 @@ More specifically, it manipulates label filters in metric expressions to reduce 
 
 * there's no OIDC callback, so it can only proxy requests that already have a jwt token.
 
-## TODO
-
-* tests for handlers;
-* improve naming;
-* log slow requests;
-* metrics;
-* add CLI interface (currently, only environment variables are used);
-* configurable JMESPath for the `roles` attribute;
-* OIDC callback to support for proxying Prometheus web-interface itself;
-* structured logging (it'll require an intermediate interface for logging `httputil`'s error logs);
-* simple deduplication if there is any performance issue (another option: use `trickster` for request optimizations).
-
 ## Similar projects
 
-### Prometheus filter proxy
-
-Link: [Prometheus filter proxy](https://github.com/hoffie/prometheus-filter-proxy)
-
-Minuses:
-
-* based on Prometheus library, so might not support some of Victoria Metrics' extensions;
-* it's an overly simple implementation that relies only on URI paths to define the scope of available metrics, so a user might potentially get access to any metrics should the URL become exposed;
-* it's based on http client, thus unlikely to be ready for high volumes of requests;
-* does not allow to filter out requests to sensitive endpoints (like `/admin/tsdb`);
-* no longer maintained.
-
-### Prometheus ACLs
-
-Link: [Prometheus ACLs](https://github.com/bitsbeats/prometheus-acls)
-
-Pluses:
-
-* based on `httputil` reverse proxy;
-* supports label filter deduplication;
-* extensive ACL syntax, which allows to specify any label filters, not necessarily limit to `namespace`;
-* has an OIDC callback and `gorilla/sessions`, so it's possible to obtain a token through the application itself;
-* validates jwt-token;
-* metrics;
-* configurable JMESPath.
-
-Minuses:
-
-* a user cannot have multiple roles (`When you have multiple roles, the first one that is mentioned in prometheus-acls will be used.`);
-* based on Prometheus library, so might not support some of Victoria Metrics' extensions;
-* does not allow to filter out requests to sensitive endpoints (like `/admin/tsdb`);
-* does not rewrite requests to `/federate` endpoint (at least, at the time of writing);
-* http server time-outs are not configured, thus might retain http sessions for much longer than needed.
+Similar projects are described [here](docs/similar-projects.md).
 
 ## Configuration
 
@@ -136,3 +92,15 @@ Note: a user is free to have multiple roles matching the contents of `acl.yaml`.
   => a prepopulated LF, corresponding to the full access role, is returned;
 * multiple "limited" roles
   => definitions of all those roles are merged together, and then LFGW generates a new LF. The process is the same as if this meta-definition was loaded through `acl.yaml`.
+
+## TODO
+
+* tests for handlers;
+* improve naming;
+* log slow requests;
+* metrics;
+* add CLI interface (currently, only environment variables are used);
+* configurable JMESPath for the `roles` attribute;
+* OIDC callback to support for proxying Prometheus web-interface itself;
+* structured logging (it'll require an intermediate interface for logging `httputil`'s error logs);
+* simple deduplication if there is any performance issue (another option: use `trickster` for request optimizations).
