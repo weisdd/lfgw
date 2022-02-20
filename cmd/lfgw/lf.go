@@ -52,11 +52,9 @@ func (app *application) appendOrMergeRegexpLF(filters []metricsql.LabelFilter, n
 }
 
 // modifyMetricExpr walks through the query and modifies only metricsql.Expr based on the supplied label filter.
-func (app *application) modifyMetricExpr(query string, newFilter metricsql.LabelFilter) (string, error) {
-	expr, err := metricsql.Parse(query)
-	if err != nil {
-		return "", err
-	}
+func (app *application) modifyMetricExpr(expr metricsql.Expr, newFilter metricsql.LabelFilter) metricsql.Expr {
+	newExpr := metricsql.Clone(expr)
+
 	// We cannot pass any extra parameters, so we need to use a closure
 	// to say which label filter to add
 	modifyLabelFilter := func(expr metricsql.Expr) {
@@ -70,31 +68,22 @@ func (app *application) modifyMetricExpr(query string, newFilter metricsql.Label
 	}
 
 	// Update label filters
-	metricsql.VisitAll(expr, modifyLabelFilter)
+	metricsql.VisitAll(newExpr, modifyLabelFilter)
 
-	app.debugLog.Printf("Rewrote query %s to query %s", query, expr.AppendString(nil))
+	app.debugLog.Printf("Rewrote query %s to query %s", expr.AppendString(nil), newExpr.AppendString(nil))
 
-	return string(expr.AppendString(nil)), nil
+	return newExpr
 }
 
 // optimizeMetricExpr optimizes expressions. More details: https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize
-func (app *application) optimizeMetricExpr(query string) (string, error) {
-	if !app.OptimizeExpressions {
-		return query, nil
-	}
-
-	expr, err := metricsql.Parse(query)
-	if err != nil {
-		return "", err
-	}
-
+func (app *application) optimizeMetricExpr(expr metricsql.Expr) metricsql.Expr {
 	newExpr := metricsql.Optimize(expr)
 
 	if !app.equalExpr(expr, newExpr) {
-		app.debugLog.Printf("Optimized query %s to query %s", query, newExpr.AppendString(nil))
+		app.debugLog.Printf("Optimized query %s to query %s", expr.AppendString(nil), newExpr.AppendString(nil))
 	}
 
-	return string(newExpr.AppendString(nil)), nil
+	return newExpr
 }
 
 // equalExpr says whether two expressions are equal
@@ -111,16 +100,17 @@ func (app *application) prepareQueryParams(params *url.Values, lf metricsql.Labe
 		case "query", "match[]":
 			for _, v := range vv {
 				{
-					newVal, err := app.modifyMetricExpr(v, lf)
+					expr, err := metricsql.Parse(v)
 					if err != nil {
 						return "", err
 					}
 
-					newVal, err = app.optimizeMetricExpr(newVal)
-					if err != nil {
-						return "", err
+					expr = app.modifyMetricExpr(expr, lf)
+					if app.OptimizeExpressions {
+						expr = app.optimizeMetricExpr(expr)
 					}
 
+					newVal := string(expr.AppendString(nil))
 					newParams.Add(k, newVal)
 				}
 			}

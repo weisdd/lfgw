@@ -91,7 +91,17 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _ := app.modifyMetricExpr(tt.query, tt.newFilter)
+			expr, err := metricsql.Parse(tt.query)
+			if err != nil {
+				t.Fatalf("%s", err)
+			}
+
+			newExpr := app.modifyMetricExpr(expr, tt.newFilter)
+			if app.equalExpr(expr, newExpr) {
+				t.Error("Original expression got modified. Use metricsql.Clone() before modifying expression.")
+			}
+
+			got := string(newExpr.AppendString(nil))
 
 			if got != tt.want {
 				t.Errorf("want %s; got %s", tt.want, got)
