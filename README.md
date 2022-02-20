@@ -11,6 +11,7 @@ More specifically, it manipulates label filters in metric expressions to reduce 
 * ACL-based request rewrites with implicit deny;
 * supports Victoria Metrics' PromQL extensions;
 * since it's based on `VictoriaMetrics/metricsql` library, which has way simpler interface than `prometheus`, there is no need to write a separate implementation for every type of MetricExpr on the planet;
+* [automatic expression optimizations](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize);
 * it's based on the middleware pattern, so it's easy to implement other, non-OIDC, modes should the need be;
 * support for different headers with access tokens (X-Forwarded-Access-Token, X-Auth-Request-Access-Token, Authorization);
 * requests to sensitive endpoints are blocked by default;
