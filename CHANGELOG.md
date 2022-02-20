@@ -3,7 +3,7 @@
 ## 0.5.0
 
 - Key changes:
-  - Added support for [automatic expression optimizations](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize);
+  - Added support for [automatic expression optimizations](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) for non-full access requests;
 - Minor changes:
   - lfgw:
     - Slight improvements in code style;
