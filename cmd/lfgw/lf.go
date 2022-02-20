@@ -72,14 +72,34 @@ func (app *application) modifyMetricExpr(query string, newFilter metricsql.Label
 	// Update label filters
 	metricsql.VisitAll(expr, modifyLabelFilter)
 
-	// Optimizes expressions. More details: https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize
-	if app.OptimizeExpressions {
-		expr = metricsql.Optimize(expr)
-	}
-
 	app.debugLog.Printf("Rewrote query %s to query %s", query, expr.AppendString(nil))
 
 	return string(expr.AppendString(nil)), nil
+}
+
+// optimizeMetricExpr optimizes expressions. More details: https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize
+func (app *application) optimizeMetricExpr(query string) (string, error) {
+	if !app.OptimizeExpressions {
+		return query, nil
+	}
+
+	expr, err := metricsql.Parse(query)
+	if err != nil {
+		return "", err
+	}
+
+	newExpr := metricsql.Optimize(expr)
+
+	if !app.equalExpr(expr, newExpr) {
+		app.debugLog.Printf("Optimized query %s to query %s", query, newExpr.AppendString(nil))
+	}
+
+	return string(newExpr.AppendString(nil)), nil
+}
+
+// equalExpr says whether two expressions are equal
+func (app *application) equalExpr(expr1 metricsql.Expr, expr2 metricsql.Expr) bool {
+	return string(expr1.AppendString(nil)) == string(expr2.AppendString(nil))
 }
 
 // prepareQueryParams rewrites GET/POST "query" and "match" parameters to filter out metrics.
@@ -95,6 +115,12 @@ func (app *application) prepareQueryParams(params *url.Values, lf metricsql.Labe
 					if err != nil {
 						return "", err
 					}
+
+					newVal, err = app.optimizeMetricExpr(newVal)
+					if err != nil {
+						return "", err
+					}
+
 					newParams.Add(k, newVal)
 				}
 			}
