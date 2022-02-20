@@ -72,6 +72,11 @@ func (app *application) modifyMetricExpr(query string, newFilter metricsql.Label
 	// Update label filters
 	metricsql.VisitAll(expr, modifyLabelFilter)
 
+	// Optimizes expressions. More details: https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize
+	if app.OptimizeExpressions {
+		expr = metricsql.Optimize(expr)
+	}
+
 	app.debugLog.Printf("Rewrote query %s to query %s", query, expr.AppendString(nil))
 
 	return string(expr.AppendString(nil)), nil

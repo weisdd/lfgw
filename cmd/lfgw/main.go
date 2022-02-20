@@ -18,22 +18,23 @@ import (
 // Define an application struct to hold the application-wide dependencies for the
 // web application.
 type application struct {
-	errorLog        *log.Logger
-	infoLog         *log.Logger
-	debugLog        *log.Logger
-	ACLMap          ACLMap
-	proxy           *httputil.ReverseProxy
-	verifier        *oidc.IDTokenVerifier
-	Debug           bool          `env:"DEBUG" envDefault:"false"`
-	UpstreamURL     *url.URL      `env:"UPSTREAM_URL,required"`
-	SafeMode        bool          `env:"SAFE_MODE" envDefault:"true"`
-	SetProxyHeaders bool          `env:"SET_PROXY_HEADERS" envDefefault:"false"`
-	ACLPath         string        `env:"ACL_PATH" envDefault:"./acl.yaml"`
-	OIDCRealmURL    string        `env:"OIDC_REALM_URL,required"`
-	OIDCClientID    string        `env:"OIDC_CLIENT_ID,required"`
-	Port            int           `env:"PORT" envDefault:"8080"`
-	ReadTimeout     time.Duration `env:"READ_TIMEOUT" envDefault:"10s"`
-	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT" envDefault:"10s"`
+	errorLog            *log.Logger
+	infoLog             *log.Logger
+	debugLog            *log.Logger
+	ACLMap              ACLMap
+	proxy               *httputil.ReverseProxy
+	verifier            *oidc.IDTokenVerifier
+	Debug               bool          `env:"DEBUG" envDefault:"false"`
+	UpstreamURL         *url.URL      `env:"UPSTREAM_URL,required"`
+	OptimizeExpressions bool          `env:"OPTIMIZE_EXPRESSIONS" envDefault:"true"`
+	SafeMode            bool          `env:"SAFE_MODE" envDefault:"true"`
+	SetProxyHeaders     bool          `env:"SET_PROXY_HEADERS" envDefefault:"false"`
+	ACLPath             string        `env:"ACL_PATH" envDefault:"./acl.yaml"`
+	OIDCRealmURL        string        `env:"OIDC_REALM_URL,required"`
+	OIDCClientID        string        `env:"OIDC_CLIENT_ID,required"`
+	Port                int           `env:"PORT" envDefault:"8080"`
+	ReadTimeout         time.Duration `env:"READ_TIMEOUT" envDefault:"10s"`
+	WriteTimeout        time.Duration `env:"WRITE_TIMEOUT" envDefault:"10s"`
 }
 
 type contextKey string

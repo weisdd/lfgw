@@ -74,28 +74,28 @@ OIDC roles are expected to be present in `roles` within a jwt token.
 
 ### Environment variables
 
-| Module               | Variable            | Default Value | Description                                                  |
-| -------------------- | ------------------- | ------------- | ------------------------------------------------------------ |
-| **General settings** |                     |               |                                                              |
-|                      | `LFGW_MODE`         | `oidc`        | Currently, only `oidc` mode is supported. So, never mind.    |
-|                      |                     |               |                                                              |
-| **Logging**          |                     |               |                                                              |
-|                      | `DEBUG`             | `false`       | Whether to print out debug log messages.                     |
-|                      |                     |               |                                                              |
-| **HTTP Server**      |                     |               |                                                              |
-|                      | `PORT`              | `8080`        | Port the web server will listen on.                          |
-|                      | `READ_TIMEOUT`      | `10s`         | `ReadTimeout` covers the time from when the connection is accepted to when the request body is fully read (if you do read the body, otherwise to the end of the headers). [More details](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) |
-|                      | `WRITE_TIMEOUT`     | `10s`         | `WriteTimeout` normally covers the time from the end of the request header read to the end of the response write (a.k.a. the lifetime of the ServeHTTP). [More details](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) |
-|                      |                     |               |                                                              |
-| **Proxy**            |                     |               |                                                              |
-|                      | `UPSTREAM_URL`      |               | Prometheus URL, e.g. `http://prometheus.microk8s.localhost`. |
-|                      | `SAFE_MODE`         | `true`        | Whether to block requests to sensitive endpoints like `/api/v1/admin/tsdb`, `/api/v1/insert`. |
-|                      | `SET_PROXY_HEADERS` | `false`       | Whether to set proxy headers (`X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host`). |
-|                      |                     |               |                                                              |
-| **OIDC**             |                     |               |                                                              |
-|                      | `ACL_PATH`          | `./acl.yaml`  | Path to a file with ACL definitions (OIDC role to namespace bindings). |
-|                      | `OIDC_REALM_URL`    |               | OIDC Realm URL, e.g. `https://auth.microk8s.localhost/auth/realms/cicd` |
-|                      | `OIDC_CLIENT_ID`    |               | OIDC Client ID (1*)                                          |
+| Module               | Variable               | Default Value | Description                                                  |
+| -------------------- | ---------------------- | ------------- | ------------------------------------------------------------ |
+| **General settings** |                        |               |                                                              |
+|                      | `OPTIMIZE_EXPRESSIONS` | `true`        | Whether to automatically optimize expressions. [More details](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) |
+|                      |                        |               |                                                              |
+| **Logging**          |                        |               |                                                              |
+|                      | `DEBUG`                | `false`       | Whether to print out debug log messages.                     |
+|                      |                        |               |                                                              |
+| **HTTP Server**      |                        |               |                                                              |
+|                      | `PORT`                 | `8080`        | Port the web server will listen on.                          |
+|                      | `READ_TIMEOUT`         | `10s`         | `ReadTimeout` covers the time from when the connection is accepted to when the request body is fully read (if you do read the body, otherwise to the end of the headers). [More details](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) |
+|                      | `WRITE_TIMEOUT`        | `10s`         | `WriteTimeout` normally covers the time from the end of the request header read to the end of the response write (a.k.a. the lifetime of the ServeHTTP). [More details](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) |
+|                      |                        |               |                                                              |
+| **Proxy**            |                        |               |                                                              |
+|                      | `UPSTREAM_URL`         |               | Prometheus URL, e.g. `http://prometheus.microk8s.localhost`. |
+|                      | `SAFE_MODE`            | `true`        | Whether to block requests to sensitive endpoints like `/api/v1/admin/tsdb`, `/api/v1/insert`. |
+|                      | `SET_PROXY_HEADERS`    | `false`       | Whether to set proxy headers (`X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host`). |
+|                      |                        |               |                                                              |
+| **OIDC**             |                        |               |                                                              |
+|                      | `ACL_PATH`             | `./acl.yaml`  | Path to a file with ACL definitions (OIDC role to namespace bindings). |
+|                      | `OIDC_REALM_URL`       |               | OIDC Realm URL, e.g. `https://auth.microk8s.localhost/auth/realms/cicd` |
+|                      | `OIDC_CLIENT_ID`       |               | OIDC Client ID (1*)                                          |
 
 (1*): since it's grafana who obtains jwt-tokens in the first place, the specified client id must also be present in the forwarded token (the `audience` field). To put it simply, better to use the same client id for both Grafana and LFGW.
 
