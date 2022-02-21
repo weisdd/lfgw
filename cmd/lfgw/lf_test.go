@@ -98,7 +98,7 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 
 			newExpr := app.modifyMetricExpr(expr, tt.newFilter)
 			if app.equalExpr(expr, newExpr) {
-				t.Error("Original expression got modified. Use metricsql.Clone() before modifying expression.")
+				t.Error("The original expression got modified. Use metricsql.Clone() before modifying any expression.")
 			}
 
 			got := string(newExpr.AppendString(nil))
