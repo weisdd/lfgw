@@ -23,7 +23,7 @@ Similar projects are described [here](docs/similar-projects.md).
 
 ## Docker images
 
-Docker images are published on [quay.io/weisdd/lfgw](https://quay.io/repository/weisdd/lfgw?tab=tags&tag=latest).
+Docker images are published on [ghcr.io/weisdd/lfgw](https://github.com/weisdd/lfgw/pkgs/container/lfgw).
 
 ## Configuration
 
