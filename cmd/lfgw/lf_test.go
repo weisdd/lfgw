@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 	"testing"
 
@@ -10,9 +10,9 @@ import (
 
 func TestApplication_modifyMetricExpr(t *testing.T) {
 	app := &application{
-		errorLog: log.New(ioutil.Discard, "", 0),
-		infoLog:  log.New(ioutil.Discard, "", 0),
-		debugLog: log.New(ioutil.Discard, "", 0),
+		errorLog: log.New(io.Discard, "", 0),
+		infoLog:  log.New(io.Discard, "", 0),
+		debugLog: log.New(io.Discard, "", 0),
 	}
 
 	newFilterPlain := metricsql.LabelFilter{
@@ -91,7 +91,17 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _ := app.modifyMetricExpr(tt.query, tt.newFilter)
+			expr, err := metricsql.Parse(tt.query)
+			if err != nil {
+				t.Fatalf("%s", err)
+			}
+
+			newExpr := app.modifyMetricExpr(expr, tt.newFilter)
+			if app.equalExpr(expr, newExpr) {
+				t.Error("The original expression got modified. Use metricsql.Clone() before modifying any expression.")
+			}
+
+			got := string(newExpr.AppendString(nil))
 
 			if got != tt.want {
 				t.Errorf("want %s; got %s", tt.want, got)
