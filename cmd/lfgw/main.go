@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
@@ -18,23 +16,24 @@ import (
 // Define an application struct to hold the application-wide dependencies for the
 // web application.
 type application struct {
-	errorLog            *log.Logger
-	infoLog             *log.Logger
-	debugLog            *log.Logger
-	ACLMap              ACLMap
-	proxy               *httputil.ReverseProxy
-	verifier            *oidc.IDTokenVerifier
-	Debug               bool          `env:"DEBUG" envDefault:"false"`
-	UpstreamURL         *url.URL      `env:"UPSTREAM_URL,required"`
-	OptimizeExpressions bool          `env:"OPTIMIZE_EXPRESSIONS" envDefault:"true"`
-	SafeMode            bool          `env:"SAFE_MODE" envDefault:"true"`
-	SetProxyHeaders     bool          `env:"SET_PROXY_HEADERS" envDefefault:"false"`
-	ACLPath             string        `env:"ACL_PATH" envDefault:"./acl.yaml"`
-	OIDCRealmURL        string        `env:"OIDC_REALM_URL,required"`
-	OIDCClientID        string        `env:"OIDC_CLIENT_ID,required"`
-	Port                int           `env:"PORT" envDefault:"8080"`
-	ReadTimeout         time.Duration `env:"READ_TIMEOUT" envDefault:"10s"`
-	WriteTimeout        time.Duration `env:"WRITE_TIMEOUT" envDefault:"10s"`
+	errorLog                *log.Logger
+	infoLog                 *log.Logger
+	debugLog                *log.Logger
+	ACLMap                  ACLMap
+	proxy                   *httputil.ReverseProxy
+	verifier                *oidc.IDTokenVerifier
+	Debug                   bool          `env:"DEBUG" envDefault:"false"`
+	UpstreamURL             *url.URL      `env:"UPSTREAM_URL,required"`
+	OptimizeExpressions     bool          `env:"OPTIMIZE_EXPRESSIONS" envDefault:"true"`
+	SafeMode                bool          `env:"SAFE_MODE" envDefault:"true"`
+	SetProxyHeaders         bool          `env:"SET_PROXY_HEADERS" envDefefault:"false"`
+	ACLPath                 string        `env:"ACL_PATH" envDefault:"./acl.yaml"`
+	OIDCRealmURL            string        `env:"OIDC_REALM_URL,required"`
+	OIDCClientID            string        `env:"OIDC_CLIENT_ID,required"`
+	Port                    int           `env:"PORT" envDefault:"8080"`
+	ReadTimeout             time.Duration `env:"READ_TIMEOUT" envDefault:"10s"`
+	WriteTimeout            time.Duration `env:"WRITE_TIMEOUT" envDefault:"10s"`
+	GracefulShutdownTimeout time.Duration `env:"GRACEFUL_SHUTDOWN_TIMEOUT" envDefault:"20s"`
 }
 
 type contextKey string
@@ -85,16 +84,8 @@ func main() {
 	app.proxy.ErrorLog = app.errorLog
 	app.proxy.FlushInterval = time.Millisecond * 200
 
-	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", app.Port),
-		ErrorLog:     app.errorLog,
-		Handler:      app.routes(),
-		IdleTimeout:  time.Minute,
-		ReadTimeout:  app.ReadTimeout,
-		WriteTimeout: app.WriteTimeout,
+	err = app.serve()
+	if err != nil {
+		app.errorLog.Fatal(err)
 	}
-
-	app.infoLog.Printf("Starting server on %d", app.Port)
-	err = srv.ListenAndServe()
-	app.errorLog.Fatal(err)
 }
