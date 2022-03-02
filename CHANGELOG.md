@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.6.0
+
+- Key changes:
+  - Added a graceful shutdown mechanism with a configurable timeout.
+
 ## 0.5.0
 
 - Key changes:
