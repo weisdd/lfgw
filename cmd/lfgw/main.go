@@ -2,23 +2,24 @@ package main
 
 import (
 	"context"
-	"io"
 	"log"
 	"net/http/httputil"
 	"net/url"
-	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/caarlos0/env/v6"
 	oidc "github.com/coreos/go-oidc/v3/oidc"
+	"github.com/rs/zerolog"
+	zlog "github.com/rs/zerolog/log"
 )
 
 // Define an application struct to hold the application-wide dependencies for the
 // web application.
 type application struct {
 	errorLog                *log.Logger
-	infoLog                 *log.Logger
-	debugLog                *log.Logger
+	logger                  *zerolog.Logger
 	ACLMap                  ACLMap
 	proxy                   *httputil.ReverseProxy
 	verifier                *oidc.IDTokenVerifier
@@ -41,38 +42,83 @@ type contextKey string
 const contextKeyHasFullaccess = contextKey("hasFullaccess")
 const contextKeyLabelFilter = contextKey("labelFilter")
 
+// TODO: move to another file
+type stdErrorWrapper struct {
+	logger *zerolog.Logger
+}
+
+// TODO: new?
+
+func (s stdErrorWrapper) Write(p []byte) (n int, err error) {
+	msg := string(p)
+	msg = strings.TrimSpace(msg)
+
+	var errorMsg string
+	var caller string
+	// TODO: move logic to callerHook?
+	for i := range msg {
+		if msg[i] == ' ' {
+			// Skip ":"
+			caller = msg[:i-1]
+			// length should always be fine as we trim spaces, thus there can't be a trailing space
+			errorMsg = msg[i+1:]
+			break
+		}
+	}
+
+	s.logger.Error().
+		Str("caller", caller).
+		Str("error", errorMsg).
+		Msgf("")
+
+	return len(p), nil
+}
+
 func main() {
-	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
-	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
-	debugLog := log.New(os.Stdout, "DEBUG\t", log.Ldate|log.Ltime|log.Lshortfile)
+	logWrapper := stdErrorWrapper{logger: &zlog.Logger}
+	errorLog := log.New(logWrapper, "", log.Lshortfile)
+
+	// TODO: create a new logger?
+	zerolog.CallerMarshalFunc = func(file string, line int) string {
+		// Copied from the standard library: https://cs.opensource.google/go/go/+/refs/tags/go1.17.8:src/log/log.go;drc=926994fd7cf65b2703552686965fb05569699897;l=134
+		short := file
+		for i := len(file) - 1; i > 0; i-- {
+			if file[i] == '/' {
+				short = file[i+1:]
+				break
+			}
+		}
+		file = short
+		return file + ":" + strconv.Itoa(line)
+	}
 
 	app := &application{
+		logger:   &zlog.Logger,
 		errorLog: errorLog,
-		infoLog:  infoLog,
-		debugLog: debugLog,
 	}
 
 	err := env.Parse(app)
 	if err != nil {
-		app.errorLog.Fatalf("%+v\n", err)
+		app.logger.Fatal().Caller().Err(err).Msgf("")
 	}
 
-	if !app.Debug {
-		app.debugLog.SetOutput(io.Discard)
+	if app.Debug {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
 	app.ACLMap, err = app.loadACL()
 	if err != nil {
-		app.errorLog.Fatal(err)
+		app.logger.Fatal().Caller().Err(err).Msgf("")
 	}
 
-	app.infoLog.Printf("Connecting to OIDC backend (%q)", app.OIDCRealmURL)
+	app.logger.Info().Caller().
+		Msgf("Connecting to OIDC backend (%q)", app.OIDCRealmURL)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	provider, err := oidc.NewProvider(ctx, app.OIDCRealmURL)
 	if err != nil {
-		app.errorLog.Fatal(err)
+		app.logger.Fatal().Caller().Err(err).Msgf("")
 	}
 
 	oidcConfig := &oidc.Config{
@@ -81,11 +127,12 @@ func main() {
 	app.verifier = provider.Verifier(oidcConfig)
 
 	app.proxy = httputil.NewSingleHostReverseProxy(app.UpstreamURL)
+	// TODO: somehow pass more context to ErrorLog
 	app.proxy.ErrorLog = app.errorLog
 	app.proxy.FlushInterval = time.Millisecond * 200
 
 	err = app.serve()
 	if err != nil {
-		app.errorLog.Fatal(err)
+		app.logger.Fatal().Caller().Err(err).Msgf("")
 	}
 }

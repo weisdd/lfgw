@@ -13,6 +13,7 @@ import (
 
 // serve starts a web server and ensures graceful shutdown
 func (app *application) serve() error {
+	// TODO: somehow pass more context to ErrorLog
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", app.Port),
 		ErrorLog:     app.errorLog,
@@ -29,7 +30,8 @@ func (app *application) serve() error {
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 		s := <-quit
 
-		app.infoLog.Printf("Caught %s signal, waiting for all connections to be closed within %s", s, app.GracefulShutdownTimeout)
+		app.logger.Info().Caller().
+			Msgf("Caught %s signal, waiting for all connections to be closed within %s", s, app.GracefulShutdownTimeout)
 
 		ctx, cancel := context.WithTimeout(context.Background(), app.GracefulShutdownTimeout)
 		defer cancel()
@@ -42,7 +44,8 @@ func (app *application) serve() error {
 		shutdownError <- nil
 	}()
 
-	app.infoLog.Printf("Starting server on %d", app.Port)
+	app.logger.Info().Caller().
+		Msgf("Starting server on %d", app.Port)
 
 	err := srv.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
@@ -54,7 +57,8 @@ func (app *application) serve() error {
 		return err
 	}
 
-	app.infoLog.Print("Successfully stopped server")
+	app.logger.Info().Caller().
+		Msgf("Successfully stopped server")
 
 	return nil
 }

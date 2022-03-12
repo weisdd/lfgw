@@ -1,18 +1,16 @@
 package main
 
 import (
-	"io"
-	"log"
 	"testing"
 
 	"github.com/VictoriaMetrics/metricsql"
+	"github.com/rs/zerolog"
 )
 
 func TestApplication_modifyMetricExpr(t *testing.T) {
+	logger := zerolog.New(nil)
 	app := &application{
-		errorLog: log.New(io.Discard, "", 0),
-		infoLog:  log.New(io.Discard, "", 0),
-		debugLog: log.New(io.Discard, "", 0),
+		logger: &logger,
 	}
 
 	newFilterPlain := metricsql.LabelFilter{

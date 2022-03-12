@@ -38,7 +38,8 @@ func (app *application) prohibitedPathsMiddleware(next http.Handler) http.Handle
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if app.SafeMode {
 			if strings.Contains(r.URL.Path, "/admin/tsdb") || strings.Contains(r.URL.Path, "/api/v1/write") {
-				app.errorLog.Printf("Blocked a request to %s", r.URL.Path)
+				app.logger.Error().Caller().
+					Msgf("Blocked a request to %s", r.URL.Path)
 				app.clientError(w, http.StatusForbidden)
 				return
 			}
@@ -65,7 +66,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rawAccessToken, err := app.getRawAccessToken(r)
 		if err != nil {
-			app.errorLog.Println(err)
+			app.logger.Error().Caller().Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
@@ -73,7 +74,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		ctx := r.Context()
 		accessToken, err := app.verifier.Verify(ctx, rawAccessToken)
 		if err != nil {
-			app.errorLog.Println(err)
+			app.logger.Error().Caller().Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
@@ -85,21 +86,23 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 			Email    string   `json:"email"`
 		}
 		if err := accessToken.Claims(&claims); err != nil {
-			app.errorLog.Println(err)
+			app.logger.Error().Caller().Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
 
 		userRoles, err := app.getUserRoles(claims.Roles)
 		if err != nil {
-			app.errorLog.Printf("%s (%s, %s)", err, claims.Username, claims.Email)
+			app.logger.Error().Caller().
+				Msgf("%s (%s, %s)", err, claims.Username, claims.Email)
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
 
 		lf, err := app.getLF(userRoles)
 		if err != nil {
-			app.errorLog.Printf("%s (%s, %s)", err, claims.Username, claims.Email)
+			app.logger.Error().Caller().
+				Msgf("%s (%s, %s)", err, claims.Username, claims.Email)
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
@@ -121,14 +124,16 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		r.Host = app.UpstreamURL.Host
 
 		if !strings.Contains(r.URL.Path, "/api/") && !strings.Contains(r.URL.Path, "/federate") {
-			app.debugLog.Print("Not an API request, passing through")
+			app.logger.Debug().Caller().
+				Msg("Not an API request, passing through")
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		hasFullaccess, ok := r.Context().Value(contextKeyHasFullaccess).(bool)
 		if ok && hasFullaccess {
-			app.debugLog.Print("Request is passed through")
+			app.logger.Debug().Caller().
+				Msg("Request is passed through")
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -141,7 +146,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 
 		err := r.ParseForm()
 		if err != nil {
-			app.errorLog.Printf("%s", err)
+			app.logger.Error().Caller().Err(err).Msgf("")
 			app.clientError(w, http.StatusBadRequest)
 			return
 		}
@@ -150,7 +155,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		getParams := r.URL.Query()
 		newGetParams, err := app.prepareQueryParams(&getParams, lf)
 		if err != nil {
-			app.errorLog.Printf("%s", err)
+			app.logger.Error().Caller().Err(err).Msgf("")
 			app.clientError(w, http.StatusBadRequest)
 			return
 		}
@@ -161,7 +166,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		if r.Method == http.MethodPost {
 			newPostParams, err := app.prepareQueryParams(&r.PostForm, lf)
 			if err != nil {
-				app.errorLog.Printf("%s", err)
+				app.logger.Error().Caller().Err(err).Msgf("")
 				app.clientError(w, http.StatusBadRequest)
 				return
 			}
