@@ -53,7 +53,8 @@ func main() {
 
 	err := env.Parse(app)
 	if err != nil {
-		app.logger.Fatal().Caller().Err(err).Msgf("")
+		app.logger.Fatal().Caller().
+			Err(err).Msgf("")
 	}
 
 	if app.Debug {
@@ -62,7 +63,8 @@ func main() {
 
 	app.ACLMap, err = app.loadACL()
 	if err != nil {
-		app.logger.Fatal().Caller().Err(err).Msgf("")
+		app.logger.Fatal().Caller().
+			Err(err).Msgf("")
 	}
 
 	app.logger.Info().Caller().
@@ -72,7 +74,8 @@ func main() {
 
 	provider, err := oidc.NewProvider(ctx, app.OIDCRealmURL)
 	if err != nil {
-		app.logger.Fatal().Caller().Err(err).Msgf("")
+		app.logger.Fatal().Caller().
+			Err(err).Msgf("")
 	}
 
 	oidcConfig := &oidc.Config{
@@ -87,6 +90,7 @@ func main() {
 
 	err = app.serve()
 	if err != nil {
-		app.logger.Fatal().Caller().Err(err).Msgf("")
+		app.logger.Fatal().Caller().
+			Err(err).Msgf("")
 	}
 }
