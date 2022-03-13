@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -40,4 +41,18 @@ func (app *application) getRawAccessToken(r *http.Request) (string, error) {
 	}
 
 	return "", fmt.Errorf("no bearer token found")
+}
+
+// lshortfile implements Lshortfile equivalent for zerolog's CallerMarshalFunc
+func (app *application) lshortfile(file string, line int) string {
+	// Copied from the standard library: https://cs.opensource.google/go/go/+/refs/tags/go1.17.8:src/log/log.go;drc=926994fd7cf65b2703552686965fb05569699897;l=134
+	short := file
+	for i := len(file) - 1; i > 0; i-- {
+		if file[i] == '/' {
+			short = file[i+1:]
+			break
+		}
+	}
+	file = short
+	return file + ":" + strconv.Itoa(line)
 }
