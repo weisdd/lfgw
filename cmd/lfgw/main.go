@@ -42,6 +42,7 @@ const contextKeyLabelFilter = contextKey("labelFilter")
 
 func main() {
 	logWrapper := stdErrorLogWrapper{logger: &zlog.Logger}
+	// NOTE: don't delete log.Lshortfile
 	errorLog := log.New(logWrapper, "", log.Lshortfile)
 
 	app := &application{
