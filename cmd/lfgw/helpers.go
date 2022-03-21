@@ -13,7 +13,7 @@ import (
 // serverError sends a generic 500 Internal Server Error response to the user.
 func (app *application) serverError(w http.ResponseWriter, r *http.Request, err error) {
 	hlog.FromRequest(r).Error().Caller(1).
-		Err(err).Msgf("")
+		Err(err).Msg("")
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 

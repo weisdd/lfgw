@@ -61,7 +61,7 @@ func main() {
 	err := env.Parse(app)
 	if err != nil {
 		app.logger.Fatal().Caller().
-			Err(err).Msgf("")
+			Err(err).Msg("")
 	}
 
 	// TODO: think of something better?
@@ -87,7 +87,7 @@ func main() {
 	provider, err := oidc.NewProvider(ctx, app.OIDCRealmURL)
 	if err != nil {
 		app.logger.Fatal().Caller().
-			Err(err).Msgf("")
+			Err(err).Msg("")
 	}
 
 	oidcConfig := &oidc.Config{
@@ -103,6 +103,6 @@ func main() {
 	err = app.serve()
 	if err != nil {
 		app.logger.Fatal().Caller().
-			Err(err).Msgf("")
+			Err(err).Msg("")
 	}
 }

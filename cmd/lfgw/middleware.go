@@ -107,7 +107,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		if err != nil {
 			// Better to log to see token verification errors
 			hlog.FromRequest(r).Error().Caller().
-				Err(err).Msgf("")
+				Err(err).Msg("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
@@ -121,7 +121,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		if err := accessToken.Claims(&claims); err != nil {
 			// Claims not set, bad token
 			hlog.FromRequest(r).Error().Caller().
-				Err(err).Msgf("")
+				Err(err).Msg("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
@@ -131,7 +131,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		userRoles, err := app.getUserRoles(claims.Roles)
 		if err != nil {
 			hlog.FromRequest(r).Error().Caller().
-				Err(err).Msgf("")
+				Err(err).Msg("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
@@ -139,7 +139,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		lf, err := app.getLF(userRoles)
 		if err != nil {
 			hlog.FromRequest(r).Error().Caller().
-				Err(err).Msgf("")
+				Err(err).Msg("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
@@ -194,7 +194,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		newGetParams, err := app.prepareQueryParams(&getParams, lf)
 		if err != nil {
 			hlog.FromRequest(r).Error().Caller().
-				Err(err).Msgf("")
+				Err(err).Msg("")
 			app.clientError(w, http.StatusBadRequest)
 			return
 		}
@@ -207,7 +207,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			newPostParams, err := app.prepareQueryParams(&r.PostForm, lf)
 			if err != nil {
 				hlog.FromRequest(r).Error().Caller().
-					Err(err).Msgf("")
+					Err(err).Msg("")
 				app.clientError(w, http.StatusBadRequest)
 				return
 			}

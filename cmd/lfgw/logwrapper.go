@@ -19,7 +19,7 @@ func (s stdErrorLogWrapper) Write(p []byte) (n int, err error) {
 	s.logger.Error().
 		Str("caller", caller).
 		Str("error", errorMsg).
-		Msgf("")
+		Msg("")
 
 	return len(p), nil
 }

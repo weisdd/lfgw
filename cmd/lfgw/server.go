@@ -58,7 +58,7 @@ func (app *application) serve() error {
 	}
 
 	app.logger.Info().Caller().
-		Msgf("Successfully stopped server")
+		Msg("Successfully stopped server")
 
 	return nil
 }

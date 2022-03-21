@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 0.7.0
+
+- Key changes:
+  - Added some tests;
+  - Moved to Go 1.18, Alpine 3.15.1;
+  - Moved to zerolog:
+    - Pretty formatting by default, JSON is also an option (env: `LOG_FORMAT`: `pretty`, `json`);
+    - Optional access log (env `LOG_REQUESTS`: `true`);
+    - NOTE: Logging format is subject to change.
+
 ## 0.6.0
 
 - Key changes:
