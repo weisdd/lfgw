@@ -14,6 +14,7 @@ require (
 require (
 	github.com/VictoriaMetrics/metrics v1.18.1 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
+	github.com/rs/xid v1.3.0 // indirect
 	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
 	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e // indirect

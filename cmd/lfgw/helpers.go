@@ -5,11 +5,14 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/hlog"
 )
 
 // serverError sends a generic 500 Internal Server Error response to the user.
-func (app *application) serverError(w http.ResponseWriter, err error) {
-	app.logger.Error().Caller().
+func (app *application) serverError(w http.ResponseWriter, r *http.Request, err error) {
+	hlog.FromRequest(r).Error().Caller().
 		Err(err).Msgf("")
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
@@ -56,4 +59,25 @@ func (app *application) lshortfile(file string, line int) string {
 	}
 	file = short
 	return file + ":" + strconv.Itoa(line)
+}
+
+// enrichLogContext adds a custom field and a value to zerolog context
+func (app *application) enrichLogContext(r *http.Request, field string, value string) {
+	// TODO: add only if non-empty field?
+	log := zerolog.Ctx(r.Context())
+	log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+		return c.Str(field, value)
+	})
+}
+
+// enrichDebugLogContext adds a custom field and a value to zerolog context if logging level is set to Debug
+func (app *application) enrichDebugLogContext(r *http.Request, field string, value string) {
+	if app.Debug {
+		if field != "" && value != "" {
+			log := zerolog.Ctx(r.Context())
+			log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+				return c.Str(field, value)
+			})
+		}
+	}
 }

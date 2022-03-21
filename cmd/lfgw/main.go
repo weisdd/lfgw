@@ -22,6 +22,7 @@ type application struct {
 	proxy                   *httputil.ReverseProxy
 	verifier                *oidc.IDTokenVerifier
 	Debug                   bool          `env:"DEBUG" envDefault:"false"`
+	LogRequests             bool          `env:"LOG_REQUESTS" envDefault:"false"`
 	UpstreamURL             *url.URL      `env:"UPSTREAM_URL,required"`
 	OptimizeExpressions     bool          `env:"OPTIMIZE_EXPRESSIONS" envDefault:"true"`
 	SafeMode                bool          `env:"SAFE_MODE" envDefault:"true"`
@@ -85,7 +86,7 @@ func main() {
 	app.verifier = provider.Verifier(oidcConfig)
 
 	app.proxy = httputil.NewSingleHostReverseProxy(app.UpstreamURL)
-	// TODO: somehow pass more context to ErrorLog
+	// TODO: somehow pass more context to ErrorLog (unsafe?)
 	app.proxy.ErrorLog = app.errorLog
 	app.proxy.FlushInterval = time.Millisecond * 200
 

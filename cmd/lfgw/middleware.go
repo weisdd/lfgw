@@ -6,8 +6,10 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/VictoriaMetrics/metricsql"
+	"github.com/rs/zerolog/hlog"
 )
 
 // healthzMiddleware is a workaround to support healthz endpoint while forwarding everything else to an upstream.
@@ -16,6 +18,29 @@ func (app *application) healthzMiddleware(next http.Handler) http.Handler {
 		if strings.HasPrefix(r.URL.Path, "/healthz") {
 			w.WriteHeader(http.StatusOK)
 			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *application) accessLogHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO: should access log be enabled when debug is on?
+		// TODO: we can just add duration to the context
+		// TODO: log only if access requests are enabled
+		next = hlog.RequestIDHandler("req_id", "Request-Id")(next)
+
+		if app.LogRequests || app.Debug {
+			next = hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+				hlog.FromRequest(r).Info().
+					Str("method", r.Method).
+					Stringer("url", r.URL).
+					Int("status", status).
+					Int("size", size).
+					// TODO: leave duration like that?
+					Str("duration", duration.String()).
+					Msg("")
+			})(next)
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -37,8 +62,10 @@ func (app *application) prohibitedMethodsMiddleware(next http.Handler) http.Hand
 func (app *application) prohibitedPathsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if app.SafeMode {
+			// TODO: move to regexp?
 			if strings.Contains(r.URL.Path, "/admin/tsdb") || strings.Contains(r.URL.Path, "/api/v1/write") {
-				app.logger.Error().Caller().
+				// TODO: change logging level?
+				hlog.FromRequest(r).Error().Caller().
 					Msgf("Blocked a request to %s", r.URL.Path)
 				app.clientError(w, http.StatusForbidden)
 				return
@@ -66,8 +93,6 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rawAccessToken, err := app.getRawAccessToken(r)
 		if err != nil {
-			app.logger.Error().Caller().
-				Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
@@ -75,7 +100,8 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		ctx := r.Context()
 		accessToken, err := app.verifier.Verify(ctx, rawAccessToken)
 		if err != nil {
-			app.logger.Error().Caller().
+			// Better to log to see token verification errors
+			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
@@ -83,32 +109,37 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 
 		// Extract custom claims
 		var claims struct {
-			Roles    []string `json:"roles"`
-			Username string   `json:"preferred_username"`
-			Email    string   `json:"email"`
+			Roles []string `json:"roles"`
+			Email string   `json:"email"`
+			// Username string   `json:"preferred_username"`
 		}
 		if err := accessToken.Claims(&claims); err != nil {
-			app.logger.Error().Caller().
+			// Claims not set, bad token
+			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
 
+		app.enrichLogContext(r, "email", claims.Email)
+
 		userRoles, err := app.getUserRoles(claims.Roles)
 		if err != nil {
-			app.logger.Error().Caller().
-				Msgf("%s (%s, %s)", err, claims.Username, claims.Email)
+			hlog.FromRequest(r).Error().Caller().
+				Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
 
 		lf, err := app.getLF(userRoles)
 		if err != nil {
-			app.logger.Error().Caller().
-				Msgf("%s (%s, %s)", err, claims.Username, claims.Email)
+			hlog.FromRequest(r).Error().Caller().
+				Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
+		// TODO: change name?
+		app.enrichDebugLogContext(r, "label_filter", string(lf.AppendString(nil)))
 
 		hasFullaccess := app.HasFullaccessValue(lf.Value)
 
@@ -127,7 +158,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		r.Host = app.UpstreamURL.Host
 
 		if !strings.Contains(r.URL.Path, "/api/") && !strings.Contains(r.URL.Path, "/federate") {
-			app.logger.Debug().Caller().
+			hlog.FromRequest(r).Debug().Caller().
 				Msg("Not an API request, passing through")
 			next.ServeHTTP(w, r)
 			return
@@ -135,7 +166,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 
 		hasFullaccess, ok := r.Context().Value(contextKeyHasFullaccess).(bool)
 		if ok && hasFullaccess {
-			app.logger.Debug().Caller().
+			hlog.FromRequest(r).Debug().Caller().
 				Msg("Request is passed through")
 			next.ServeHTTP(w, r)
 			return
@@ -143,35 +174,41 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 
 		lf, ok := r.Context().Value(contextKeyLabelFilter).(metricsql.LabelFilter)
 		if !ok {
-			app.serverError(w, fmt.Errorf("LF is not set in the context"))
+			app.serverError(w, r, fmt.Errorf("LF is not set in the context"))
 			return
 		}
 
 		err := r.ParseForm()
 		if err != nil {
-			app.logger.Error().Caller().
-				Err(err).Msgf("")
 			app.clientError(w, http.StatusBadRequest)
 			return
 		}
 
+		// TODO: do only if it matches GET? Or it's safer to leave it as is?
 		// Adjust GET params
 		getParams := r.URL.Query()
+		// TODO: Optimize logging?
+		app.enrichDebugLogContext(r, "original_get_params", getParams.Encode())
+
 		newGetParams, err := app.prepareQueryParams(&getParams, lf)
 		if err != nil {
-			app.logger.Error().Caller().
+			// TODO: remove log?
+			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msgf("")
 			app.clientError(w, http.StatusBadRequest)
 			return
 		}
 		r.URL.RawQuery = newGetParams
+		// TODO: Optimize logging?
+		app.enrichDebugLogContext(r, "new_get_params", newGetParams)
 
 		// Adjust POST params
 		// Partially inspired by https://github.com/bitsbeats/prometheus-acls/blob/master/internal/labeler/middleware.go
 		if r.Method == http.MethodPost {
+			app.enrichDebugLogContext(r, "original_post_params", r.PostForm.Encode())
 			newPostParams, err := app.prepareQueryParams(&r.PostForm, lf)
 			if err != nil {
-				app.logger.Error().Caller().
+				hlog.FromRequest(r).Error().Caller().
 					Err(err).Msgf("")
 				app.clientError(w, http.StatusBadRequest)
 				return
@@ -179,6 +216,10 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			newBody := strings.NewReader(newPostParams)
 			r.ContentLength = newBody.Size()
 			r.Body = io.NopCloser(newBody)
+			// TODO: somehow deal with not adjusted requests
+			// TODO: add a field that would say that request stayed the same?
+			// TODO: log these fields optionally? (add condition for debug or a custom parameter)
+			app.enrichDebugLogContext(r, "new_post_params", newPostParams)
 		}
 
 		next.ServeHTTP(w, r)
