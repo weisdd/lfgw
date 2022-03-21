@@ -50,7 +50,7 @@ func TestACL_ToSlice(t *testing.T) {
 			got, err := acl.toSlice(tt.ns)
 			if tt.fail {
 				if err == nil {
-					t.Errorf("Expected a non-nil error, though got %s", err)
+					t.Error("Expected a non-nil error, though got a nil one")
 				}
 			} else {
 				if reflect.DeepEqual(got, tt.want) {

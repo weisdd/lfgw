@@ -41,6 +41,7 @@ func (app *application) logHandler(next http.Handler) http.Handler {
 
 		if app.LogRequests || app.Debug {
 			next = hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+				// TODO: optionally change to debug?
 				hlog.FromRequest(r).Info().
 					Str("method", r.Method).
 					Stringer("url", r.URL).
@@ -131,6 +132,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 
 		userRoles, err := app.getUserRoles(claims.Roles)
 		if err != nil {
+			// TODO: change logging level? (no matching roles found)
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
@@ -139,6 +141,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 
 		lf, err := app.getLF(userRoles)
 		if err != nil {
+			// TODO: change logging level?
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
@@ -180,6 +183,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 
 		lf, ok := r.Context().Value(contextKeyLabelFilter).(metricsql.LabelFilter)
 		if !ok {
+			// Should never happen. It means OIDC middleware hasn't done it's job
 			app.serverError(w, r, fmt.Errorf("LF is not set in the context"))
 			return
 		}
@@ -195,7 +199,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		getParams := r.URL.Query()
 		newGetParams, err := app.prepareQueryParams(&getParams, lf)
 		if err != nil {
-			// TODO: remove log?
+			// TODO: change logging level?
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msgf("")
 			app.clientError(w, http.StatusBadRequest)
@@ -210,6 +214,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		if r.Method == http.MethodPost {
 			newPostParams, err := app.prepareQueryParams(&r.PostForm, lf)
 			if err != nil {
+				// TODO: change logging level?
 				hlog.FromRequest(r).Error().Caller().
 					Err(err).Msgf("")
 				app.clientError(w, http.StatusBadRequest)
