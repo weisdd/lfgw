@@ -1,7 +1,4 @@
-ARG ALPINE_VERSION=3.15.0
-ARG GOLANG_VERSION=1.17.7-alpine3.15
-
-FROM golang:${GOLANG_VERSION} as builder
+FROM golang:1.18.0-alpine3.15 as builder
 
 ARG VERSION
 
@@ -22,7 +19,7 @@ RUN go install \
     " \
     ./...
 
-FROM alpine:${ALPINE_VERSION} as runtime
+FROM alpine:3.15.1 as runtime
 
 RUN set -x \
   && apk add --update --no-cache ca-certificates tzdata \

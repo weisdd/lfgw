@@ -50,7 +50,7 @@ func TestACL_ToSlice(t *testing.T) {
 			got, err := acl.toSlice(tt.ns)
 			if tt.fail {
 				if err == nil {
-					t.Errorf("Expected a non-nil error, though got %s", err)
+					t.Error("Expected a non-nil error, though got a nil one")
 				}
 			} else {
 				if reflect.DeepEqual(got, tt.want) {
@@ -127,39 +127,3 @@ func TestACL_PrepareLF(t *testing.T) {
 }
 
 // TODO: test loadACL
-// // PrepareLF Returns a label filter based on rule definitions (non-regexp for one namespace, regexp - for many)
-// func (a ACL) PrepareLF(ns string) (metricsql.LabelFilter, error) {
-// 	var lf = metricsql.LabelFilter{
-// 		Label:      "namespace",
-// 		IsNegative: false,
-// 	}
-
-// 	if ns == ".*" {
-// 		lf.Value = ns
-// 		lf.IsRegexp = true
-// 	}
-
-// 	buffer, err := a.toSlice(ns)
-// 	if err != nil {
-// 		return metricsql.LabelFilter{}, err
-// 	}
-
-// 	if len(buffer) == 1 {
-// 		lf.Value = buffer[0]
-// 		if strings.ContainsAny(buffer[0], `.+*?^$()[]{}|\`) {
-// 			lf.IsRegexp = true
-// 		}
-// 	} else {
-// 		lf.Value = fmt.Sprintf("^(%s)$", strings.Join(buffer, "|"))
-// 		lf.IsRegexp = true
-// 	}
-
-// 	if lf.IsRegexp {
-// 		_, err := regexp.Compile(lf.Value)
-// 		if err != nil {
-// 			return metricsql.LabelFilter{}, fmt.Errorf("%s in %q (converted from %q)", err, lf.Value, ns)
-// 		}
-// 	}
-
-// 	return lf, nil
-// }

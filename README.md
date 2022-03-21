@@ -38,6 +38,9 @@ OIDC roles are expected to be present in `roles` within a jwt token.
 |                      |                             |               |                                                              |
 | **Logging**          |                             |               |                                                              |
 |                      | `DEBUG`                     | `false`       | Whether to print out debug log messages.                     |
+|                      | `LOG_FORMAT`                | `pretty`      | Log format (`pretty`, `json`)                                |
+|                      | `LOG_NO_COLOR`              | `false`       | Whether to disable colors for `pretty` format                |
+|                      | `LOG_REQUESTS`              | `false`       | Whether to log HTTP requests                                 |
 |                      |                             |               |                                                              |
 | **HTTP Server**      |                             |               |                                                              |
 |                      | `PORT`                      | `8080`        | Port the web server will listen on.                          |

@@ -105,7 +105,7 @@ func (app *application) loadACL() (ACLMap, error) {
 
 	err = yaml.Unmarshal(yamlFile, &aclYaml)
 	if err != nil {
-		app.errorLog.Fatal(err)
+		return aclMap, err
 	}
 
 	for role, ns := range aclYaml {
@@ -121,7 +121,8 @@ func (app *application) loadACL() (ACLMap, error) {
 		acl.LabelFilter = lf
 		acl.RawACL = ns
 		aclMap[role] = acl
-		app.infoLog.Printf("Loaded role definition for %s: %q (converted to %s)", role, ns, acl.LabelFilter.AppendString(nil))
+		app.logger.Info().Caller().
+			Msgf("Loaded role definition for %s: %q (converted to %s)", role, ns, acl.LabelFilter.AppendString(nil))
 	}
 
 	return aclMap, nil

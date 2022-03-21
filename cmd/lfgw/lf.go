@@ -70,7 +70,9 @@ func (app *application) modifyMetricExpr(expr metricsql.Expr, newFilter metricsq
 	// Update label filters
 	metricsql.VisitAll(newExpr, modifyLabelFilter)
 
-	app.debugLog.Printf("Rewrote query %s to query %s", expr.AppendString(nil), newExpr.AppendString(nil))
+	// TODO: log somehow?
+	// app.logger.Debug().Caller().
+	// 	Msgf("Rewrote query %s to query %s", expr.AppendString(nil), newExpr.AppendString(nil))
 
 	return newExpr
 }
@@ -79,9 +81,11 @@ func (app *application) modifyMetricExpr(expr metricsql.Expr, newFilter metricsq
 func (app *application) optimizeMetricExpr(expr metricsql.Expr) metricsql.Expr {
 	newExpr := metricsql.Optimize(expr)
 
-	if !app.equalExpr(expr, newExpr) {
-		app.debugLog.Printf("Optimized query %s to query %s", expr.AppendString(nil), newExpr.AppendString(nil))
-	}
+	// TODO: log somehow?
+	// if !app.equalExpr(expr, newExpr) {
+	// 	app.logger.Debug().Caller().
+	// 		Msgf("Optimized query %s to query %s", expr.AppendString(nil), newExpr.AppendString(nil))
+	// }
 
 	return newExpr
 }

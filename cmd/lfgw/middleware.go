@@ -6,8 +6,10 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/VictoriaMetrics/metricsql"
+	"github.com/rs/zerolog/hlog"
 )
 
 // healthzMiddleware is a workaround to support healthz endpoint while forwarding everything else to an upstream.
@@ -16,6 +18,38 @@ func (app *application) healthzMiddleware(next http.Handler) http.Handler {
 		if strings.HasPrefix(r.URL.Path, "/healthz") {
 			w.WriteHeader(http.StatusOK)
 			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *application) logHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next = hlog.RequestIDHandler("req_id", "Request-Id")(next)
+
+		err := r.ParseForm()
+		if err != nil {
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+
+		if app.Debug {
+			// If any of those are empty, they won't get logged
+			app.enrichDebugLogContext(r, "get_params", r.URL.Query().Encode())
+			app.enrichDebugLogContext(r, "post_params", r.PostForm.Encode())
+		}
+
+		if app.LogRequests || app.Debug {
+			next = hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+				// TODO: optionally change to debug?
+				hlog.FromRequest(r).Info().
+					Str("method", r.Method).
+					Stringer("url", r.URL).
+					Int("status", status).
+					Int("size", size).
+					Str("duration", duration.String()).
+					Msg("")
+			})(next)
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -36,12 +70,11 @@ func (app *application) prohibitedMethodsMiddleware(next http.Handler) http.Hand
 // prohibitedPaths forbids access to some destinations that should not be proxied.
 func (app *application) prohibitedPathsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if app.SafeMode {
-			if strings.Contains(r.URL.Path, "/admin/tsdb") || strings.Contains(r.URL.Path, "/api/v1/write") {
-				app.errorLog.Printf("Blocked a request to %s", r.URL.Path)
-				app.clientError(w, http.StatusForbidden)
-				return
-			}
+		if app.SafeMode && app.isUnsafePath(r.URL.Path) {
+			hlog.FromRequest(r).Error().Caller().
+				Msgf("Blocked a request to %s", r.URL.Path)
+			app.clientError(w, http.StatusForbidden)
+			return
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -65,7 +98,6 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rawAccessToken, err := app.getRawAccessToken(r)
 		if err != nil {
-			app.errorLog.Println(err)
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
@@ -73,36 +105,45 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		ctx := r.Context()
 		accessToken, err := app.verifier.Verify(ctx, rawAccessToken)
 		if err != nil {
-			app.errorLog.Println(err)
+			// Better to log to see token verification errors
+			hlog.FromRequest(r).Error().Caller().
+				Err(err).Msg("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
 
 		// Extract custom claims
 		var claims struct {
-			Roles    []string `json:"roles"`
-			Username string   `json:"preferred_username"`
-			Email    string   `json:"email"`
+			Roles []string `json:"roles"`
+			Email string   `json:"email"`
+			// Username string   `json:"preferred_username"`
 		}
 		if err := accessToken.Claims(&claims); err != nil {
-			app.errorLog.Println(err)
+			// Claims not set, bad token
+			hlog.FromRequest(r).Error().Caller().
+				Err(err).Msg("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
 
+		app.enrichLogContext(r, "email", claims.Email)
+
 		userRoles, err := app.getUserRoles(claims.Roles)
 		if err != nil {
-			app.errorLog.Printf("%s (%s, %s)", err, claims.Username, claims.Email)
+			hlog.FromRequest(r).Error().Caller().
+				Err(err).Msg("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
 
 		lf, err := app.getLF(userRoles)
 		if err != nil {
-			app.errorLog.Printf("%s (%s, %s)", err, claims.Username, claims.Email)
+			hlog.FromRequest(r).Error().Caller().
+				Err(err).Msg("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
+		app.enrichDebugLogContext(r, "label_filter", string(lf.AppendString(nil)))
 
 		hasFullaccess := app.HasFullaccessValue(lf.Value)
 
@@ -120,28 +161,30 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		// Rewrite request destination
 		r.Host = app.UpstreamURL.Host
 
-		if !strings.Contains(r.URL.Path, "/api/") && !strings.Contains(r.URL.Path, "/federate") {
-			app.debugLog.Print("Not an API request, passing through")
+		if app.isNotAPIRequest(r.URL.Path) {
+			hlog.FromRequest(r).Debug().Caller().
+				Msg("Not an API request, request is not modified")
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		hasFullaccess, ok := r.Context().Value(contextKeyHasFullaccess).(bool)
 		if ok && hasFullaccess {
-			app.debugLog.Print("Request is passed through")
+			hlog.FromRequest(r).Debug().Caller().
+				Msg("User has full access, request is not modified")
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		lf, ok := r.Context().Value(contextKeyLabelFilter).(metricsql.LabelFilter)
 		if !ok {
-			app.serverError(w, fmt.Errorf("LF is not set in the context"))
+			// Should never happen. It means OIDC middleware hasn't done it's job
+			app.serverError(w, r, fmt.Errorf("LF is not set in the context"))
 			return
 		}
 
 		err := r.ParseForm()
 		if err != nil {
-			app.errorLog.Printf("%s", err)
 			app.clientError(w, http.StatusBadRequest)
 			return
 		}
@@ -150,24 +193,28 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		getParams := r.URL.Query()
 		newGetParams, err := app.prepareQueryParams(&getParams, lf)
 		if err != nil {
-			app.errorLog.Printf("%s", err)
+			hlog.FromRequest(r).Error().Caller().
+				Err(err).Msg("")
 			app.clientError(w, http.StatusBadRequest)
 			return
 		}
 		r.URL.RawQuery = newGetParams
+		app.enrichDebugLogContext(r, "new_get_params", newGetParams)
 
 		// Adjust POST params
 		// Partially inspired by https://github.com/bitsbeats/prometheus-acls/blob/master/internal/labeler/middleware.go
 		if r.Method == http.MethodPost {
 			newPostParams, err := app.prepareQueryParams(&r.PostForm, lf)
 			if err != nil {
-				app.errorLog.Printf("%s", err)
+				hlog.FromRequest(r).Error().Caller().
+					Err(err).Msg("")
 				app.clientError(w, http.StatusBadRequest)
 				return
 			}
 			newBody := strings.NewReader(newPostParams)
 			r.ContentLength = newBody.Size()
 			r.Body = io.NopCloser(newBody)
+			app.enrichDebugLogContext(r, "new_post_params", newPostParams)
 		}
 
 		next.ServeHTTP(w, r)
