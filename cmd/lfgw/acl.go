@@ -94,6 +94,7 @@ func (a *ACL) PrepareLF(ns string) (metricsql.LabelFilter, error) {
 	return lf, nil
 }
 
+// loadACL loads ACL from a file
 func (app *application) loadACL() (ACLMap, error) {
 	aclMap := make(ACLMap)
 
@@ -176,7 +177,7 @@ func (app *application) getLF(roles []string) (metricsql.LabelFilter, error) {
 		return app.ACLMap[role].LabelFilter, nil
 	}
 
-	// If a user has a fullaccess role, there's no need to check any other one
+	// If a user has a fullaccess role, there's no need to check any other one.
 	for _, role := range roles {
 		if app.ACLMap[role].Fullaccess {
 			return app.ACLMap[role].LabelFilter, nil

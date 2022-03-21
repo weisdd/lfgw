@@ -90,7 +90,7 @@ func (app *application) optimizeMetricExpr(expr metricsql.Expr) metricsql.Expr {
 	return newExpr
 }
 
-// equalExpr says whether two expressions are equal
+// equalExpr says whether two expressions are equal.
 func (app *application) equalExpr(expr1 metricsql.Expr, expr2 metricsql.Expr) bool {
 	return string(expr1.AppendString(nil)) == string(expr2.AppendString(nil))
 }
