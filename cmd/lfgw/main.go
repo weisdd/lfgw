@@ -74,7 +74,7 @@ func main() {
 	app.ACLMap, err = app.loadACL()
 	if err != nil {
 		app.logger.Fatal().Caller().
-			Err(err).Msgf("")
+			Err(err).Msgf("Failed to load ACL")
 	}
 
 	app.logger.Info().Caller().

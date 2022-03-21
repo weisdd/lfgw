@@ -105,8 +105,7 @@ func (app *application) loadACL() (ACLMap, error) {
 
 	err = yaml.Unmarshal(yamlFile, &aclYaml)
 	if err != nil {
-		app.logger.Fatal().Caller().
-			Err(err).Msgf("")
+		return aclMap, err
 	}
 
 	for role, ns := range aclYaml {
