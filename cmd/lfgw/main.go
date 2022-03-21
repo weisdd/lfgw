@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -22,7 +23,9 @@ type application struct {
 	proxy                   *httputil.ReverseProxy
 	verifier                *oidc.IDTokenVerifier
 	Debug                   bool          `env:"DEBUG" envDefault:"false"`
+	LogFormat               string        `env:"LOG_FORMAT" envDefault:"pretty"`
 	LogRequests             bool          `env:"LOG_REQUESTS" envDefault:"false"`
+	LogNoColor              bool          `env:"LOG_NO_COLOR" envDefault:"false"`
 	UpstreamURL             *url.URL      `env:"UPSTREAM_URL,required"`
 	OptimizeExpressions     bool          `env:"OPTIMIZE_EXPRESSIONS" envDefault:"true"`
 	SafeMode                bool          `env:"SAFE_MODE" envDefault:"true"`
@@ -57,6 +60,11 @@ func main() {
 	if err != nil {
 		app.logger.Fatal().Caller().
 			Err(err).Msgf("")
+	}
+
+	// TODO: think of smth better?
+	if app.LogFormat == "pretty" {
+		zlog.Logger = zlog.Output(zerolog.ConsoleWriter{Out: os.Stderr, NoColor: app.LogNoColor})
 	}
 
 	if app.Debug {

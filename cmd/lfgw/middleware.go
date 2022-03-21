@@ -121,8 +121,8 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		}
 		if err := accessToken.Claims(&claims); err != nil {
 			// Claims not set, bad token
-			// hlog.FromRequest(r).Error().Caller().
-			// 	Err(err).Msgf("")
+			hlog.FromRequest(r).Error().Caller().
+				Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
