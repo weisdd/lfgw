@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.8.0
+
+- Key changes:
+  - Exposed runtime metrics.
+
 ## 0.7.0
 
 - Key changes:

@@ -3,6 +3,7 @@ module gitlab.rshbdev.ru/rshbintech/integrations/ckpr/infra/images/lfgw
 go 1.18
 
 require (
+	github.com/VictoriaMetrics/metrics v1.18.1
 	github.com/VictoriaMetrics/metricsql v0.40.0
 	github.com/caarlos0/env/v6 v6.9.1
 	github.com/coreos/go-oidc/v3 v3.1.0
@@ -12,7 +13,6 @@ require (
 )
 
 require (
-	github.com/VictoriaMetrics/metrics v1.18.1 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/rs/xid v1.3.0 // indirect
 	github.com/valyala/fastrand v1.1.0 // indirect

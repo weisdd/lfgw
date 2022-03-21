@@ -8,9 +8,9 @@ import (
 // routes returns a router with all paths.
 func (app *application) routes() *mux.Router {
 	r := mux.NewRouter()
-	r.Use(app.healthzMiddleware)
+	r.Use(app.nonProxiedEndpointsMiddleware)
 	r.Use(hlog.NewHandler(*app.logger))
-	r.Use(app.logHandler)
+	r.Use(app.logMiddleware)
 	r.Use(app.prohibitedMethodsMiddleware)
 	r.Use(app.proxyHeadersMiddleware)
 	r.Use(app.oidcModeMiddleware)
