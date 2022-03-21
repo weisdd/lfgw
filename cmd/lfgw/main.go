@@ -64,7 +64,7 @@ func main() {
 			Err(err).Msgf("")
 	}
 
-	// TODO: think of smth better?
+	// TODO: think of something better?
 	if app.LogFormat == "pretty" {
 		zlog.Logger = zlog.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: app.LogNoColor})
 	}

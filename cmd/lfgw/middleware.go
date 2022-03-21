@@ -47,7 +47,6 @@ func (app *application) logHandler(next http.Handler) http.Handler {
 					Stringer("url", r.URL).
 					Int("status", status).
 					Int("size", size).
-					// TODO: leave duration like that?
 					Str("duration", duration.String()).
 					Msg("")
 			})(next)
@@ -72,7 +71,6 @@ func (app *application) prohibitedMethodsMiddleware(next http.Handler) http.Hand
 func (app *application) prohibitedPathsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if app.SafeMode && app.isUnsafePath(r.URL.Path) {
-			// TODO: change logging level?
 			hlog.FromRequest(r).Error().Caller().
 				Msgf("Blocked a request to %s", r.URL.Path)
 			app.clientError(w, http.StatusForbidden)
@@ -132,7 +130,6 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 
 		userRoles, err := app.getUserRoles(claims.Roles)
 		if err != nil {
-			// TODO: change logging level? (no matching roles found)
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
@@ -141,13 +138,11 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 
 		lf, err := app.getLF(userRoles)
 		if err != nil {
-			// TODO: change logging level?
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
-		// TODO: change name?
 		app.enrichDebugLogContext(r, "label_filter", string(lf.AppendString(nil)))
 
 		hasFullaccess := app.HasFullaccessValue(lf.Value)
@@ -194,19 +189,16 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			return
 		}
 
-		// TODO: do only if it matches GET? Or it's safer to leave it as is?
 		// Adjust GET params
 		getParams := r.URL.Query()
 		newGetParams, err := app.prepareQueryParams(&getParams, lf)
 		if err != nil {
-			// TODO: change logging level?
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msgf("")
 			app.clientError(w, http.StatusBadRequest)
 			return
 		}
 		r.URL.RawQuery = newGetParams
-		// TODO: Optimize logging?
 		app.enrichDebugLogContext(r, "new_get_params", newGetParams)
 
 		// Adjust POST params
@@ -214,7 +206,6 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		if r.Method == http.MethodPost {
 			newPostParams, err := app.prepareQueryParams(&r.PostForm, lf)
 			if err != nil {
-				// TODO: change logging level?
 				hlog.FromRequest(r).Error().Caller().
 					Err(err).Msgf("")
 				app.clientError(w, http.StatusBadRequest)
@@ -223,9 +214,6 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			newBody := strings.NewReader(newPostParams)
 			r.ContentLength = newBody.Size()
 			r.Body = io.NopCloser(newBody)
-			// TODO: somehow deal with not adjusted requests
-			// TODO: add a field that would say that request stayed the same?
-			// TODO: log these fields optionally? (add condition for debug or a custom parameter)
 			app.enrichDebugLogContext(r, "new_post_params", newPostParams)
 		}
 
