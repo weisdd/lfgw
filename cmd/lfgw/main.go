@@ -45,6 +45,8 @@ const contextKeyHasFullaccess = contextKey("hasFullaccess")
 const contextKeyLabelFilter = contextKey("labelFilter")
 
 func main() {
+	zlog.Logger = zlog.Output(os.Stdout)
+
 	logWrapper := stdErrorLogWrapper{logger: &zlog.Logger}
 	// NOTE: don't delete log.Lshortfile
 	errorLog := log.New(logWrapper, "", log.Lshortfile)
@@ -64,7 +66,7 @@ func main() {
 
 	// TODO: think of smth better?
 	if app.LogFormat == "pretty" {
-		zlog.Logger = zlog.Output(zerolog.ConsoleWriter{Out: os.Stderr, NoColor: app.LogNoColor})
+		zlog.Logger = zlog.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: app.LogNoColor})
 	}
 
 	if app.Debug {
