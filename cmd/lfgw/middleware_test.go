@@ -43,7 +43,7 @@ func TestProhibitedMethodsMiddleware(t *testing.T) {
 				t.Fatal(err)
 			}
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte("OK"))
+				_, _ = w.Write([]byte("OK"))
 			})
 			app.prohibitedMethodsMiddleware(next).ServeHTTP(rr, r)
 			rs := rr.Result()
@@ -115,7 +115,7 @@ func TestProhibitedPathsMiddleware(t *testing.T) {
 				t.Fatal(err)
 			}
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte("OK"))
+				_, _ = w.Write([]byte("OK"))
 			})
 			app.prohibitedPathsMiddleware(next).ServeHTTP(rr, r)
 			rs := rr.Result()
