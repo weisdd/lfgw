@@ -63,11 +63,12 @@ func (app *application) lshortfile(file string, line int) string {
 
 // enrichLogContext adds a custom field and a value to zerolog context
 func (app *application) enrichLogContext(r *http.Request, field string, value string) {
-	// TODO: add only if non-empty field?
-	log := zerolog.Ctx(r.Context())
-	log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-		return c.Str(field, value)
-	})
+	if field != "" && value != "" {
+		log := zerolog.Ctx(r.Context())
+		log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+			return c.Str(field, value)
+		})
+	}
 }
 
 // enrichDebugLogContext adds a custom field and a value to zerolog context if logging level is set to Debug
@@ -80,4 +81,13 @@ func (app *application) enrichDebugLogContext(r *http.Request, field string, val
 			})
 		}
 	}
+}
+
+func (app *application) isNotAPIRequest(path string) bool {
+	return !strings.Contains(path, "/api/") && !strings.Contains(path, "/federate")
+}
+
+func (app *application) isUnsafePath(path string) bool {
+	// TODO: move to regexp?
+	return strings.Contains(path, "/admin/tsdb") || strings.Contains(path, "/api/v1/write")
 }

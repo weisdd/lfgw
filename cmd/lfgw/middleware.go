@@ -23,12 +23,21 @@ func (app *application) healthzMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (app *application) accessLogHandler(next http.Handler) http.Handler {
+func (app *application) logHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: should access log be enabled when debug is on?
-		// TODO: we can just add duration to the context
-		// TODO: log only if access requests are enabled
 		next = hlog.RequestIDHandler("req_id", "Request-Id")(next)
+
+		err := r.ParseForm()
+		if err != nil {
+			app.clientError(w, http.StatusBadRequest)
+			return
+		}
+
+		if app.Debug {
+			// If any of those are empty, they won't get logged
+			app.enrichDebugLogContext(r, "get_params", r.URL.Query().Encode())
+			app.enrichDebugLogContext(r, "post_params", r.PostForm.Encode())
+		}
 
 		if app.LogRequests || app.Debug {
 			next = hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
@@ -61,15 +70,12 @@ func (app *application) prohibitedMethodsMiddleware(next http.Handler) http.Hand
 // prohibitedPaths forbids access to some destinations that should not be proxied.
 func (app *application) prohibitedPathsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if app.SafeMode {
-			// TODO: move to regexp?
-			if strings.Contains(r.URL.Path, "/admin/tsdb") || strings.Contains(r.URL.Path, "/api/v1/write") {
-				// TODO: change logging level?
-				hlog.FromRequest(r).Error().Caller().
-					Msgf("Blocked a request to %s", r.URL.Path)
-				app.clientError(w, http.StatusForbidden)
-				return
-			}
+		if app.SafeMode && app.isUnsafePath(r.URL.Path) {
+			// TODO: change logging level?
+			hlog.FromRequest(r).Error().Caller().
+				Msgf("Blocked a request to %s", r.URL.Path)
+			app.clientError(w, http.StatusForbidden)
+			return
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -115,8 +121,8 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		}
 		if err := accessToken.Claims(&claims); err != nil {
 			// Claims not set, bad token
-			hlog.FromRequest(r).Error().Caller().
-				Err(err).Msgf("")
+			// hlog.FromRequest(r).Error().Caller().
+			// 	Err(err).Msgf("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
@@ -157,9 +163,9 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		// Rewrite request destination
 		r.Host = app.UpstreamURL.Host
 
-		if !strings.Contains(r.URL.Path, "/api/") && !strings.Contains(r.URL.Path, "/federate") {
+		if app.isNotAPIRequest(r.URL.Path) {
 			hlog.FromRequest(r).Debug().Caller().
-				Msg("Not an API request, passing through")
+				Msg("Not an API request, request is not modified")
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -167,7 +173,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		hasFullaccess, ok := r.Context().Value(contextKeyHasFullaccess).(bool)
 		if ok && hasFullaccess {
 			hlog.FromRequest(r).Debug().Caller().
-				Msg("Request is passed through")
+				Msg("User has full access, request is not modified")
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -187,9 +193,6 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		// TODO: do only if it matches GET? Or it's safer to leave it as is?
 		// Adjust GET params
 		getParams := r.URL.Query()
-		// TODO: Optimize logging?
-		app.enrichDebugLogContext(r, "original_get_params", getParams.Encode())
-
 		newGetParams, err := app.prepareQueryParams(&getParams, lf)
 		if err != nil {
 			// TODO: remove log?
@@ -205,7 +208,6 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		// Adjust POST params
 		// Partially inspired by https://github.com/bitsbeats/prometheus-acls/blob/master/internal/labeler/middleware.go
 		if r.Method == http.MethodPost {
-			app.enrichDebugLogContext(r, "original_post_params", r.PostForm.Encode())
 			newPostParams, err := app.prepareQueryParams(&r.PostForm, lf)
 			if err != nil {
 				hlog.FromRequest(r).Error().Caller().

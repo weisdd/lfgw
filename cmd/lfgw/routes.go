@@ -11,7 +11,7 @@ func (app *application) routes() *mux.Router {
 	r.Use(app.healthzMiddleware)
 	// TODO: move to middleware accesslog?
 	r.Use(hlog.NewHandler(*app.logger))
-	r.Use(app.accessLogHandler)
+	r.Use(app.logHandler)
 	r.Use(app.prohibitedMethodsMiddleware)
 	r.Use(app.proxyHeadersMiddleware)
 	r.Use(app.oidcModeMiddleware)
