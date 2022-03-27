@@ -66,6 +66,11 @@ func (a *ACL) PrepareLF(ns string) (metricsql.LabelFilter, error) {
 		lf.Value = buffer[0]
 		if strings.ContainsAny(buffer[0], `.+*?^$()[]{}|\`) {
 			lf.IsRegexp = true
+			// Trim anchors as they're not needed for Prometheus, and not expected in the app.shouldBeModified function
+			lf.Value = strings.TrimLeft(lf.Value, "^")
+			lf.Value = strings.TrimLeft(lf.Value, "(")
+			lf.Value = strings.TrimRight(lf.Value, "$")
+			lf.Value = strings.TrimRight(lf.Value, ")")
 		}
 	} else {
 		// TODO: work with dicts? What's faster? - Slice or Dict->Slice?

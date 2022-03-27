@@ -75,8 +75,8 @@ team0: .*                # all metrics
 team1: min.*, .*, stolon # all metrics, it's the same as .*
 team2: minio             # only those with namespace="minio"
 team3: min.*             # only those matching namespace=~"min.*"
-team4: minio, stolon     # only those matching namespace=~"^(minio|stolon)$"
-team5: min.*, stolon     # only those matching namespace=~"^(min.*|stolon)$"
+team4: minio, stolon     # only those matching namespace=~"minio|stolon"
+team5: min.*, stolon     # only those matching namespace=~"min.*|stolon"
 ```
 
 To summarize, here are the key principles used for rewriting requests:
@@ -87,7 +87,7 @@ To summarize, here are the key principles used for rewriting requests:
 * `minio, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"minio|stolon"` is added;
 * `min.*, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"min.*|stolon"` is added.
 
-Note: Regex matches are fully anchored. A match of `env=~"foo"` is treated as `env=~"^foo$"` ([Source](https://prometheus.io/docs/prometheus/latest/querying/basics/)).
+Note: Regex matches are fully anchored. A match of `env=~"foo"` is treated as `env=~"^foo$"` ([Source](https://prometheus.io/docs/prometheus/latest/querying/basics/)). Please, be careful, they are not expected to be used in ACLs.
 
 Note: a user is free to have multiple roles matching the contents of `acl.yaml`. Basically, there are 3 cases:
 

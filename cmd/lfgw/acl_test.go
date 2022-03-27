@@ -105,7 +105,18 @@ func TestACL_PrepareLF(t *testing.T) {
 		},
 		{
 			name: "min.* (one regexp)",
-			ns:   "min.* ",
+			ns:   "min.*",
+			want: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "min.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			fail: false,
+		},
+		{
+			name: "min.* (one anchored regexp)",
+			ns:   "^(min.*)$",
 			want: metricsql.LabelFilter{
 				Label:      "namespace",
 				Value:      "min.*",
