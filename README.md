@@ -84,8 +84,10 @@ To summarize, here are the key principles used for rewriting requests:
 * `.*` - all requests are simply forwarded to an upstream;
 * `minio` - all label filters with the `namespace` label are removed, then `namespace="minio"` is added;
 * `min.*` -  positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"mi.*"` is added;
-* `minio, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"^(minio|stolon)$"` is added;
-* `min.*, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"^(min.*|stolon)$"` is added.
+* `minio, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"minio|stolon"` is added;
+* `min.*, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"min.*|stolon"` is added.
+
+Note: Regex matches are fully anchored. A match of `env=~"foo"` is treated as `env=~"^foo$"` ([Source](https://prometheus.io/docs/prometheus/latest/querying/basics/)).
 
 Note: a user is free to have multiple roles matching the contents of `acl.yaml`. Basically, there are 3 cases:
 

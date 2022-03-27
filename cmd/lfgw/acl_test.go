@@ -119,7 +119,7 @@ func TestACL_PrepareLF(t *testing.T) {
 			ns:   "minio, stolon",
 			want: metricsql.LabelFilter{
 				Label:      "namespace",
-				Value:      "^(minio|stolon)$",
+				Value:      "minio|stolon",
 				IsRegexp:   true,
 				IsNegative: false,
 			},
@@ -130,7 +130,7 @@ func TestACL_PrepareLF(t *testing.T) {
 			ns:   "min.*, stolon",
 			want: metricsql.LabelFilter{
 				Label:      "namespace",
-				Value:      "^(min.*|stolon)$",
+				Value:      "min.*|stolon",
 				IsRegexp:   true,
 				IsNegative: false,
 			},
@@ -152,7 +152,7 @@ func TestACL_PrepareLF(t *testing.T) {
 			ns:   "a,b",
 			want: metricsql.LabelFilter{
 				Label:      "namespace",
-				Value:      "^(a|b)$",
+				Value:      "a|b",
 				IsRegexp:   true,
 				IsNegative: false,
 			},

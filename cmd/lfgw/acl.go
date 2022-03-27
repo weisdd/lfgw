@@ -80,7 +80,8 @@ func (a *ACL) PrepareLF(ns string) (metricsql.LabelFilter, error) {
 			}
 		}
 
-		lf.Value = fmt.Sprintf("^(%s)$", strings.Join(buffer, "|"))
+		// "Regex matches are fully anchored. A match of env=~"foo" is treated as env=~"^foo$"." https://prometheus.io/docs/prometheus/latest/querying/basics/
+		lf.Value = strings.Join(buffer, "|")
 		lf.IsRegexp = true
 	}
 
