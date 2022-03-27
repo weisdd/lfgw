@@ -1,4 +1,4 @@
-module gitlab.rshbdev.ru/rshbintech/integrations/ckpr/infra/images/lfgw
+module github.com/weisdd/lfgw
 
 go 1.18
 

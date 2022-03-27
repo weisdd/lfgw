@@ -82,6 +82,61 @@ func TestACL_PrepareLF(t *testing.T) {
 			fail: false,
 		},
 		{
+			name: "min.*, .*, stolon (full access, same as .*)",
+			ns:   "min.*, .*, stolon",
+			want: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      ".*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			fail: false,
+		},
+		{
+			name: "minio (only minio)",
+			ns:   "minio",
+			want: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "minio",
+				IsRegexp:   false,
+				IsNegative: false,
+			},
+			fail: false,
+		},
+		{
+			name: "min.* (one regexp)",
+			ns:   "min.* ",
+			want: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "min.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			fail: false,
+		},
+		{
+			name: "minio, stolon (two namespaces)",
+			ns:   "minio, stolon",
+			want: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "^(minio|stolon)$",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			fail: false,
+		},
+		{
+			name: "min.*, stolon (regexp and non-regexp)",
+			ns:   "min.*, stolon",
+			want: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "^(min.*|stolon)$",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			fail: false,
+		},
+		{
 			name: ".+ (is regexp)",
 			ns:   ".+",
 			want: metricsql.LabelFilter{
