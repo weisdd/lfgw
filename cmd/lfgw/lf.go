@@ -24,28 +24,31 @@ func (app *application) replaceLFByName(filters []metricsql.LabelFilter, newFilt
 
 // appendOrMergeRegexpLF appends label filter or merges its value in case it's a regexp with the same name
 // and of the same type (negative / positive).
+// appendOrMergeRegexpLF appends label filter or merges its value in case it's a regexp with the same name and of the same type (negative / positive).
 func (app *application) appendOrMergeRegexpLF(filters []metricsql.LabelFilter, newFilter metricsql.LabelFilter) []metricsql.LabelFilter {
 	newFilters := make([]metricsql.LabelFilter, 0, cap(filters)+1)
 
-	// Helps to determine whether we found a similar regexp (only with
-	// different value)
-	foundMatch := false
+	// In case we merge original filter value with newFilter, we'd like to skip adding newFilter to the resulting set.
+	skipAddingNewFilter := false
 
 	for _, filter := range filters {
-		// Merge label filter's value
-		if filter.Label == newFilter.Label && filter.IsRegexp && filter.IsNegative == newFilter.IsNegative {
-			foundMatch = true
-			// Merge only negative regexps, because merge for positive regexp will expose data
-			if filter.Value != "" && filter.IsNegative {
-				filter.Value = fmt.Sprintf("%s|%s", filter.Value, newFilter.Value)
-			} else {
-				filter.Value = newFilter.Value
+		// Inspect label filters with the targe name
+		if filter.Label == newFilter.Label {
+			// Inspect regexp filters of the same type (negative, positive)
+			if filter.IsRegexp && filter.IsNegative == newFilter.IsNegative {
+				skipAddingNewFilter = true
+				// Merge only negative regexps, because merge for positive regexp will expose data
+				if filter.Value != "" && filter.IsNegative {
+					filter.Value = fmt.Sprintf("%s|%s", filter.Value, newFilter.Value)
+				} else {
+					filter.Value = newFilter.Value
+				}
 			}
 		}
 		newFilters = append(newFilters, filter)
 	}
 
-	if !foundMatch {
+	if !skipAddingNewFilter {
 		newFilters = append(newFilters, newFilter)
 	}
 	return newFilters
