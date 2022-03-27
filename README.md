@@ -34,6 +34,7 @@ OIDC roles are expected to be present in `roles` within a jwt token.
 | Module               | Variable                    | Default Value | Description                                                  |
 | -------------------- | --------------------------- | ------------- | ------------------------------------------------------------ |
 | **General settings** |                             |               |                                                              |
+|                      | `ENABLE_DEDUPLICATION`      | `true`        | Whether to enable deduplication. If a new label filter is a positive regexp that matches the original non-regexp filter, then the original expression is not modified. |
 |                      | `OPTIMIZE_EXPRESSIONS`      | `true`        | Whether to automatically optimize expressions for non-full access requests. [More details](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) |
 |                      |                             |               |                                                              |
 | **Logging**          |                             |               |                                                              |
@@ -107,6 +108,4 @@ Note: a user is free to have multiple roles matching the contents of `acl.yaml`.
 * add CLI interface (currently, only environment variables are used);
 * configurable JMESPath for the `roles` attribute;
 * OIDC callback to support for proxying Prometheus web-interface itself;
-* structured logging (it'll require an intermediate interface for logging `httputil`'s error logs);
-* simple deduplication if there is any performance issue (another option: use `trickster` for request optimizations);
 * add a helm chart.

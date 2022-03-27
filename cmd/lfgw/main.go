@@ -28,6 +28,7 @@ type application struct {
 	LogNoColor              bool          `env:"LOG_NO_COLOR" envDefault:"false"`
 	UpstreamURL             *url.URL      `env:"UPSTREAM_URL,required"`
 	OptimizeExpressions     bool          `env:"OPTIMIZE_EXPRESSIONS" envDefault:"true"`
+	EnableDeduplication     bool          `env:"ENABLE_DEDUPLICATION" envDefault:"true"`
 	SafeMode                bool          `env:"SAFE_MODE" envDefault:"true"`
 	SetProxyHeaders         bool          `env:"SET_PROXY_HEADERS" envDefefault:"false"`
 	ACLPath                 string        `env:"ACL_PATH" envDefault:"./acl.yaml"`

@@ -22,8 +22,24 @@ func (app *application) replaceLFByName(filters []metricsql.LabelFilter, newFilt
 	return newFilters
 }
 
-// appendOrMergeRegexpLF appends label filter or merges its value in case it's a regexp with the same name
-// and of the same type (negative / positive).
+// shouldBeModified helps to understand whether the original label filter has to be mofified. It returns true if the list of original filters contains a filter with the target label (specified in newFilter) and newFilter is a matching positive regexp.
+func (app *application) shouldBeModified(filters []metricsql.LabelFilter, newFilter metricsql.LabelFilter) bool {
+	for _, filter := range filters {
+		if filter.Label == newFilter.Label {
+			if !filter.IsRegexp && newFilter.IsRegexp && !newFilter.IsNegative {
+				// Prometheus treats all regexp queries as anchored, whereas our raw regexp doesn't have them. So, we should take anchored values.
+				re, err := metricsql.CompileRegexpAnchored(newFilter.Value)
+				// There shouldn't be any errors, though, just in case, better to skip deduplication
+				if err == nil && re.MatchString(filter.Value) {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
+}
+
 // appendOrMergeRegexpLF appends label filter or merges its value in case it's a regexp with the same name and of the same type (negative / positive).
 func (app *application) appendOrMergeRegexpLF(filters []metricsql.LabelFilter, newFilter metricsql.LabelFilter) []metricsql.LabelFilter {
 	newFilters := make([]metricsql.LabelFilter, 0, cap(filters)+1)
@@ -63,7 +79,9 @@ func (app *application) modifyMetricExpr(expr metricsql.Expr, newFilter metricsq
 	modifyLabelFilter := func(expr metricsql.Expr) {
 		if me, ok := expr.(*metricsql.MetricExpr); ok {
 			if newFilter.IsRegexp {
-				me.LabelFilters = app.appendOrMergeRegexpLF(me.LabelFilters, newFilter)
+				if app.shouldBeModified(me.LabelFilters, newFilter) || !app.EnableDeduplication {
+					me.LabelFilters = app.appendOrMergeRegexpLF(me.LabelFilters, newFilter)
+				}
 			} else {
 				me.LabelFilters = app.replaceLFByName(me.LabelFilters, newFilter)
 			}
