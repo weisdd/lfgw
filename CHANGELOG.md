@@ -6,7 +6,7 @@
   - Added support for primitive deduplication (enabled by default). Previously, a label filter with positive regexp was always added. Now, if a new label filter is a positive regexp that matches the original non-regexp filter, then the original expression is not modified. The behaviour can be turned off through `ENABLE_DEDUPLICATION: false`;
   - ACLs:
     - ACLs containing one word regexp expressions will have their anchors stripped;
-    - Anchors are no longer added to complex ALCs, because Prometheus always treats regex expressions as fully anchored;
+    - Anchors are no longer added to complex ACLs, because Prometheus always treats regex expressions as fully anchored;
   - Added more tests.
 
 ## 0.8.0
