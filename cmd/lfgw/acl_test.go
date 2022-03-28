@@ -319,4 +319,72 @@ func saveACLToFile(t testing.TB, f *os.File, content string) {
 	}
 }
 
-// TODO: test getLF
+func TestACL_GetLF(t *testing.T) {
+	app := &application{
+		ACLMap: ACLMap{
+			"admin": &ACL{
+				Fullaccess: true,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      ".*",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: ".*",
+			},
+			"multiple-values": &ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      "ku.*|min.*",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: "ku.*, min.*",
+			},
+			"single-value": &ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      "default",
+					IsRegexp:   false,
+					IsNegative: false,
+				},
+				RawACL: "default",
+			},
+		},
+	}
+
+	t.Run("0 roles", func(t *testing.T) {
+		roles := []string{}
+		_, err := app.getLF(roles)
+		assert.NotNil(t, err)
+	})
+
+	t.Run("1 role", func(t *testing.T) {
+		roles := []string{"single-value"}
+		want := app.ACLMap["single-value"].LabelFilter
+		got, err := app.getLF(roles)
+		assert.Nil(t, err)
+		assert.Equal(t, got, want)
+	})
+
+	t.Run("multiple roles, full access", func(t *testing.T) {
+		roles := []string{"admin", "multiple-values"}
+		want := app.ACLMap["admin"].LabelFilter
+		got, err := app.getLF(roles)
+		assert.Nil(t, err)
+		assert.Equal(t, got, want)
+	})
+
+	t.Run("multiple roles, no full access", func(t *testing.T) {
+		roles := []string{"single-value", "multiple-values"}
+		acl := app.ACLMap["single-value"]
+		want, err := acl.PrepareLF(app.rolesToRawACL(roles))
+		assert.Nil(t, err)
+
+		got, err := app.getLF(roles)
+		assert.Nil(t, err)
+		assert.Equal(t, got, want)
+	})
+}
