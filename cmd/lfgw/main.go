@@ -58,6 +58,7 @@ func main() {
 	}
 
 	zerolog.CallerMarshalFunc = app.lshortfile
+	zerolog.DurationFieldUnit = time.Second
 
 	err := env.Parse(app)
 	if err != nil {

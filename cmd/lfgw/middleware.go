@@ -43,8 +43,8 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 
 		if app.Debug {
 			// If any of those are empty, they won't get logged
-			app.enrichDebugLogContext(r, "get_params", r.URL.Query().Encode())
-			app.enrichDebugLogContext(r, "post_params", r.PostForm.Encode())
+			app.enrichDebugLogContext(r, "get_params", app.unescapedURLQuery(r.URL.Query().Encode()))
+			app.enrichDebugLogContext(r, "post_params", app.unescapedURLQuery(r.PostForm.Encode()))
 		}
 
 		if app.LogRequests || app.Debug {
@@ -55,7 +55,7 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 					Stringer("url", r.URL).
 					Int("status", status).
 					Int("size", size).
-					Str("duration", duration.String()).
+					Dur("duration", duration).
 					Msg("")
 			})(next)
 		}
@@ -207,7 +207,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			return
 		}
 		r.URL.RawQuery = newGetParams
-		app.enrichDebugLogContext(r, "new_get_params", newGetParams)
+		app.enrichDebugLogContext(r, "new_get_params", app.unescapedURLQuery(newGetParams))
 
 		// Adjust POST params
 		// Partially inspired by https://github.com/bitsbeats/prometheus-acls/blob/master/internal/labeler/middleware.go
@@ -222,7 +222,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			newBody := strings.NewReader(newPostParams)
 			r.ContentLength = newBody.Size()
 			r.Body = io.NopCloser(newBody)
-			app.enrichDebugLogContext(r, "new_post_params", newPostParams)
+			app.enrichDebugLogContext(r, "new_post_params", app.unescapedURLQuery(newPostParams))
 		}
 
 		next.ServeHTTP(w, r)

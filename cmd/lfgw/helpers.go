@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -92,4 +93,15 @@ func (app *application) isNotAPIRequest(path string) bool {
 func (app *application) isUnsafePath(path string) bool {
 	// TODO: move to regexp?
 	return strings.Contains(path, "/admin/tsdb") || strings.Contains(path, "/api/v1/write")
+}
+
+// unescapedURLQuery returns unescaped query string
+func (app *application) unescapedURLQuery(s string) string {
+	// We should never hit an error as we encoded query string ourselves. The undelying library returns an empty string in case of an error, error handling is left only for clarity.
+	decoded, err := url.QueryUnescape(s)
+	if err != nil {
+		return ""
+	}
+
+	return decoded
 }
