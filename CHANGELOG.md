@@ -7,6 +7,7 @@
   - ACLs:
     - ACLs containing one word regexp expressions will have their anchors stripped;
     - Anchors are no longer added to complex ACLs, because Prometheus always treats regex expressions as fully anchored;
+    - Fix: if a user had multiple roles, and one of the roles contained `.*` amongst other entries, getLF would pass all roles to PrepareLF instead of directly returning a full access role. It didn't cause any security issues as PrepareLF would still return a full access label filter.
   - Added more tests.
 
 ## 0.8.0

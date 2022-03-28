@@ -1,10 +1,12 @@
 package main
 
 import (
+	"os"
 	"reflect"
 	"testing"
 
 	"github.com/VictoriaMetrics/metricsql"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestACL_ToSlice(t *testing.T) {
@@ -192,4 +194,129 @@ func TestACL_PrepareLF(t *testing.T) {
 	}
 }
 
-// TODO: test loadACL
+func TestACL_LoadACL(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    ACLMap
+	}{
+		{
+			name:    "admin",
+			content: "admin: .*",
+			want: ACLMap{
+				"admin": &ACL{
+					Fullaccess: true,
+					LabelFilter: metricsql.LabelFilter{
+						Label:      "namespace",
+						Value:      ".*",
+						IsRegexp:   true,
+						IsNegative: false,
+					},
+					RawACL: ".*",
+				},
+			},
+		},
+		{
+			name:    "implicit-admin",
+			content: `implicit-admin: ku.*, .*, min.*`,
+			want: ACLMap{
+				"implicit-admin": &ACL{
+					Fullaccess: true,
+					LabelFilter: metricsql.LabelFilter{
+						Label:      "namespace",
+						Value:      ".*",
+						IsRegexp:   true,
+						IsNegative: false,
+					},
+					RawACL: "ku.*, .*, min.*",
+				},
+			},
+		},
+		{
+			name:    "multiple-values",
+			content: "multiple-values: ku.*, min.*",
+			want: ACLMap{
+				"multiple-values": &ACL{
+					Fullaccess: false,
+					LabelFilter: metricsql.LabelFilter{
+						Label:      "namespace",
+						Value:      "ku.*|min.*",
+						IsRegexp:   true,
+						IsNegative: false,
+					},
+					RawACL: "ku.*, min.*",
+				},
+			},
+		},
+		{
+			name:    "single-value",
+			content: "single-value: default",
+			want: ACLMap{
+				"single-value": &ACL{
+					Fullaccess: false,
+					LabelFilter: metricsql.LabelFilter{
+						Label:      "namespace",
+						Value:      "default",
+						IsRegexp:   false,
+						IsNegative: false,
+					},
+					RawACL: "default",
+				},
+			},
+		},
+	}
+
+	f, err := os.CreateTemp("", "acl-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+
+	app := &application{
+		ACLPath: f.Name(),
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			saveACLToFile(t, f, tt.content)
+			got, err := app.loadACL()
+			assert.Nil(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+
+	t.Run("incorrect ACL", func(t *testing.T) {
+		saveACLToFile(t, f, "test-role:")
+		_, err := app.loadACL()
+		assert.NotNil(t, err)
+
+		saveACLToFile(t, f, "test-role: a b")
+		_, err = app.loadACL()
+		assert.NotNil(t, err)
+	})
+
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// saveACLToFile writes given content to a file (existing data is deleted)
+func saveACLToFile(t testing.TB, f *os.File, content string) {
+	t.Helper()
+	if err := f.Truncate(0); err != nil {
+		f.Close()
+		t.Fatal(err)
+	}
+
+	if _, err := f.Seek(0, 0); err != nil {
+		f.Close()
+		t.Fatal(err)
+	}
+
+	if _, err := f.Write([]byte(content)); err != nil {
+		f.Close()
+		t.Fatal(err)
+	}
+}
+
+// TODO: test getLF

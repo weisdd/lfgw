@@ -80,6 +80,11 @@ func main() {
 			Err(err).Msgf("Failed to load ACL")
 	}
 
+	for role, acl := range app.ACLMap {
+		app.logger.Info().Caller().
+			Msgf("Loaded role definition for %s: %q (converted to %s)", role, acl.RawACL, acl.LabelFilter.AppendString(nil))
+	}
+
 	app.logger.Info().Caller().
 		Msgf("Connecting to OIDC backend (%q)", app.OIDCRealmURL)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

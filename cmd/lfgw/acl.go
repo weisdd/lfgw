@@ -49,22 +49,30 @@ func (a *ACL) toSlice(str string) ([]string, error) {
 }
 
 // PrepareLF returns a label filter based on a rule definition (non-regexp for one namespace, regexp - for many)
-func (a *ACL) PrepareLF(ns string) (metricsql.LabelFilter, error) {
+func (a *ACL) PrepareLF(rawACL string) (metricsql.LabelFilter, error) {
 	var lf = metricsql.LabelFilter{
 		Label:      "namespace",
 		IsNegative: false,
 	}
 
-	// TODO: deduplication of ns?
-
-	buffer, err := a.toSlice(ns)
+	buffer, err := a.toSlice(rawACL)
 	if err != nil {
 		return metricsql.LabelFilter{}, err
 	}
 
+	// If .* is in the slice, then we can omit any other value
+	for _, v := range buffer {
+		// TODO: move to HasFullaccessValue?
+		if v == ".*" {
+			lf.Value = v
+			lf.IsRegexp = true
+			return lf, nil
+		}
+	}
+
 	if len(buffer) == 1 {
 		lf.Value = buffer[0]
-		if strings.ContainsAny(buffer[0], `.+*?^$()[]{}|\`) {
+		if strings.ContainsAny(lf.Value, `.+*?^$()[]{}|\`) {
 			lf.IsRegexp = true
 			// Trim anchors as they're not needed for Prometheus, and not expected in the app.shouldBeModified function
 			lf.Value = strings.TrimLeft(lf.Value, "^")
@@ -73,18 +81,6 @@ func (a *ACL) PrepareLF(ns string) (metricsql.LabelFilter, error) {
 			lf.Value = strings.TrimRight(lf.Value, ")")
 		}
 	} else {
-		// TODO: work with dicts? What's faster? - Slice or Dict->Slice?
-
-		// If .* is in the slice, then we can omit any other value
-		for _, v := range buffer {
-			// TODO: move to HasFullaccessValue?
-			if v == ".*" {
-				lf.Value = v
-				lf.IsRegexp = true
-				return lf, nil
-			}
-		}
-
 		// "Regex matches are fully anchored. A match of env=~"foo" is treated as env=~"^foo$"." https://prometheus.io/docs/prometheus/latest/querying/basics/
 		lf.Value = strings.Join(buffer, "|")
 		lf.IsRegexp = true
@@ -93,7 +89,7 @@ func (a *ACL) PrepareLF(ns string) (metricsql.LabelFilter, error) {
 	if lf.IsRegexp {
 		_, err := regexp.Compile(lf.Value)
 		if err != nil {
-			return metricsql.LabelFilter{}, fmt.Errorf("%s in %q (converted from %q)", err, lf.Value, ns)
+			return metricsql.LabelFilter{}, fmt.Errorf("%s in %q (converted from %q)", err, lf.Value, rawACL)
 		}
 	}
 
@@ -115,21 +111,17 @@ func (app *application) loadACL() (ACLMap, error) {
 		return aclMap, err
 	}
 
-	for role, ns := range aclYaml {
+	for role, rawACL := range aclYaml {
 		acl := &ACL{}
-		if app.HasFullaccessValue(ns) {
-			acl.Fullaccess = true
-		}
 
-		lf, err := acl.PrepareLF(ns)
+		lf, err := acl.PrepareLF(rawACL)
 		if err != nil {
 			return aclMap, err
 		}
+		acl.Fullaccess = app.HasFullaccessValue(lf.Value)
 		acl.LabelFilter = lf
-		acl.RawACL = ns
+		acl.RawACL = rawACL
 		aclMap[role] = acl
-		app.logger.Info().Caller().
-			Msgf("Loaded role definition for %s: %q (converted to %s)", role, ns, acl.LabelFilter.AppendString(nil))
 	}
 
 	return aclMap, nil
@@ -153,6 +145,7 @@ func (app *application) getUserRoles(oidcRoles []string) ([]string, error) {
 	return []string{}, fmt.Errorf("no matching roles found")
 }
 
+// TODO: rewrite to also consider fullaccess attribute? Or not needed?
 // HasFullaccessValue returns true if a label filter gives access to all namespaces.
 func (app *application) HasFullaccessValue(value string) bool {
 	return value == ".*"
@@ -190,11 +183,11 @@ func (app *application) getLF(roles []string) (metricsql.LabelFilter, error) {
 		}
 	}
 
-	ns := app.rolesToRawACL(roles)
+	rawACL := app.rolesToRawACL(roles)
 
 	acl := &ACL{}
 
-	lf, err := acl.PrepareLF(ns)
+	lf, err := acl.PrepareLF(rawACL)
 	if err != nil {
 		return metricsql.LabelFilter{}, err
 	}
