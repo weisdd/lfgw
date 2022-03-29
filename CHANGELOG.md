@@ -3,7 +3,7 @@
 ## 0.9.0
 
 - Key changes:
-  - Added support for primitive deduplication (enabled by default). Previously, a label filter with positive regexp was always added. Now, if a new label filter is a positive regexp that matches the original non-regexp filter, then the original expression is not modified. The behaviour can be turned off through `ENABLE_DEDUPLICATION: false`;
+  - Added support for deduplication (enabled by default). Previously, a label filter with positive regexp was always added or replaced. Now, if a new label filter is a positive regexp that matches the original filter (either a non-regexp or a regexp with no special symbols, e.g. `namespace=~"kube-system"`), then the original expression is not modified. The behaviour can be turned off through `ENABLE_DEDUPLICATION: false`;
   - ACLs:
     - ACLs containing one word regexp expressions will have their anchors stripped;
     - Anchors are no longer added to complex ACLs, because Prometheus always treats regex expressions as fully anchored;

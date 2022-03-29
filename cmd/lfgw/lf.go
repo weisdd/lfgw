@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -22,11 +23,19 @@ func (app *application) replaceLFByName(filters []metricsql.LabelFilter, newFilt
 	return newFilters
 }
 
-// shouldBeModified helps to understand whether the original label filter has to be mofified. It returns true if the list of original filters contains a filter with the target label (specified in newFilter) and newFilter is a matching positive regexp.
+// shouldBeModified helps to understand whether the original label filter has to be mofified. It returns true if [the list of original filters contains either a fake positive regexp (no special symbols, e.g. namespace=~"kube-system") or a non-regexp filter] and [newFilter is a matching positive regexp]. Target label is taken from the newFilter.
 func (app *application) shouldBeModified(filters []metricsql.LabelFilter, newFilter metricsql.LabelFilter) bool {
 	for _, filter := range filters {
-		if filter.Label == newFilter.Label {
-			if !filter.IsRegexp && newFilter.IsRegexp && !newFilter.IsNegative {
+		if filter.Label == newFilter.Label && newFilter.IsRegexp && !newFilter.IsNegative {
+			isFakePositiveRegexp := false
+
+			if filter.IsRegexp && !filter.IsNegative {
+				if !strings.ContainsAny(filter.Value, `.+*?^$()[]{}|\`) {
+					isFakePositiveRegexp = true
+				}
+			}
+
+			if !filter.IsRegexp || isFakePositiveRegexp {
 				// Prometheus treats all regexp queries as anchored, whereas our raw regexp doesn't have them. So, we should take anchored values.
 				re, err := metricsql.CompileRegexpAnchored(newFilter.Value)
 				// There shouldn't be any errors, though, just in case, better to skip deduplication

@@ -72,6 +72,7 @@ func (a *ACL) PrepareLF(rawACL string) (metricsql.LabelFilter, error) {
 
 	if len(buffer) == 1 {
 		lf.Value = buffer[0]
+		// TODO: move to a helper?
 		if strings.ContainsAny(lf.Value, `.+*?^$()[]{}|\`) {
 			lf.IsRegexp = true
 			// Trim anchors as they're not needed for Prometheus, and not expected in the app.shouldBeModified function

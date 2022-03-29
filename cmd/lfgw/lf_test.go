@@ -235,7 +235,7 @@ func TestShouldBeModified(t *testing.T) {
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
 	})
 
-	t.Run("Positive non-matching complex regex", func(t *testing.T) {
+	t.Run("Positive non-matching complex regexp", func(t *testing.T) {
 		newFilter := metricsql.LabelFilter{
 			Label:      "namespace",
 			Value:      "kube.*|control.*",
@@ -261,7 +261,9 @@ func TestShouldBeModified(t *testing.T) {
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter doesn't match original filter")
 	})
 
-	t.Run("The only matching case", func(t *testing.T) {
+	// Matching cases
+
+	t.Run("Original filter is not a regexp, new filter matches", func(t *testing.T) {
 		newFilter := metricsql.LabelFilter{
 			Label:      "namespace",
 			Value:      "min.*|control.*",
@@ -272,5 +274,27 @@ func TestShouldBeModified(t *testing.T) {
 		want := false
 		got := app.shouldBeModified(filters, newFilter)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is not a regexp and the new filter is a matching positive regexp")
+	})
+
+	t.Run("Original filter is a fake positive regexp (no special symbols), new filter matches", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label:      "namespace",
+				Value:      "minio",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+		}
+
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "min.*|control.*",
+			IsRegexp:   true,
+			IsNegative: false,
+		}
+
+		want := false
+		got := app.shouldBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is a fake positive regexp (it doesn't contain any special characters, should have been a non-regexp expression, e.g. namespace=~\"kube-system\") and the new filter is a matching positive regexp")
 	})
 }
