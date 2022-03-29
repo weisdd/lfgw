@@ -35,16 +35,22 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next = hlog.RequestIDHandler("req_id", "Request-Id")(next)
 
-		err := r.ParseForm()
-		if err != nil {
-			app.clientError(w, http.StatusBadRequest)
-			return
-		}
-
 		if app.Debug {
+			err := r.ParseForm()
+			if err != nil {
+				app.clientError(w, http.StatusBadRequest)
+				return
+			}
+
+			// Once r.ParseForm() is called, we need to update ContentLength, otherwise the request will fail
+			postForm := r.PostForm.Encode()
+			newBody := strings.NewReader(postForm)
+			r.ContentLength = newBody.Size()
+			r.Body = io.NopCloser(newBody)
+
 			// If any of those are empty, they won't get logged
 			app.enrichDebugLogContext(r, "get_params", app.unescapedURLQuery(r.URL.Query().Encode()))
-			app.enrichDebugLogContext(r, "post_params", app.unescapedURLQuery(r.PostForm.Encode()))
+			app.enrichDebugLogContext(r, "post_params", app.unescapedURLQuery(postForm))
 		}
 
 		if app.LogRequests || app.Debug {
