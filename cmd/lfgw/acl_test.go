@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/VictoriaMetrics/metricsql"
@@ -10,57 +9,38 @@ import (
 )
 
 func TestACL_ToSlice(t *testing.T) {
-	acl := &ACL{false, metricsql.LabelFilter{}, ""}
+	acl := &ACL{}
 
-	tests := []struct {
-		name string
-		ns   string
-		want []string
-		fail bool
-	}{
-		{
-			name: "a, b",
-			ns:   "a, b",
-			want: []string{"a", "b", ""},
-			fail: false,
-		},
-		{
-			name: "a, , b (contains empty values)",
-			ns:   "a, b",
-			want: []string{"a", "b", ""},
-			fail: false,
-		},
-		{
-			name: "a",
-			ns:   "a",
-			want: []string{"a", ""}, //TODO: wtf?
-			fail: false,
-		},
-		{
-			name: "a b (contains spaces)", // labels should not contain spaces, thus fail
-			ns:   "a b",
-			fail: true,
-		},
-		{
-			name: "(empty values)", // should never return empty values, thus fail
-			ns:   "",
-			fail: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := acl.toSlice(tt.ns)
-			if tt.fail {
-				if err == nil {
-					t.Error("Expected a non-nil error, though got a nil one")
-				}
-			} else {
-				if reflect.DeepEqual(got, tt.want) {
-					t.Errorf("want %q; got %q", tt.want, got)
-				}
-			}
-		})
-	}
+	t.Run("a, b", func(t *testing.T) {
+		want := []string{"a", "b"}
+		got, err := acl.toSlice("a, b")
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("a, , b (contains empty values)", func(t *testing.T) {
+		want := []string{"a", "b"}
+		got, err := acl.toSlice("a, , b")
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("a", func(t *testing.T) {
+		want := []string{"a"}
+		got, err := acl.toSlice("a")
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("a b (contains spaces)", func(t *testing.T) {
+		_, err := acl.toSlice("a b")
+		assert.NotNil(t, err)
+	})
+
+	t.Run("(empty values)", func(t *testing.T) {
+		_, err := acl.toSlice("")
+		assert.NotNil(t, err)
+	})
 }
 
 func TestACL_PrepareLF(t *testing.T) {
