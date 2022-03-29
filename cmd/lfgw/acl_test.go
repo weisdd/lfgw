@@ -319,7 +319,70 @@ func saveACLToFile(t testing.TB, f *os.File, content string) {
 	}
 }
 
-func TestACL_GetLF(t *testing.T) {
+func TestApplication_GetUserRoles(t *testing.T) {
+	app := &application{
+		ACLMap: ACLMap{
+			"admin": &ACL{
+				Fullaccess: true,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      ".*",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: ".*",
+			},
+			"multiple-values": &ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      "ku.*|min.*",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: "ku.*, min.*",
+			},
+			"single-value": &ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      "default",
+					IsRegexp:   false,
+					IsNegative: false,
+				},
+				RawACL: "default",
+			},
+		},
+	}
+
+	t.Run("0 known roles", func(t *testing.T) {
+		oidcRoles := []string{"unknown-role"}
+
+		_, err := app.getUserRoles(oidcRoles)
+		assert.NotNil(t, err)
+	})
+
+	t.Run("1 known role", func(t *testing.T) {
+		oidcRoles := []string{"single-value", "uknown-role"}
+		want := []string{"single-value"}
+
+		got, err := app.getUserRoles(oidcRoles)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+
+	})
+
+	t.Run("multiple known roles", func(t *testing.T) {
+		oidcRoles := []string{"single-value", "multiple-values"}
+		want := []string{"single-value", "multiple-values"}
+
+		got, err := app.getUserRoles(oidcRoles)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+}
+
+func TestApplication_GetLF(t *testing.T) {
 	app := &application{
 		ACLMap: ACLMap{
 			"admin": &ACL{
@@ -378,7 +441,11 @@ func TestACL_GetLF(t *testing.T) {
 	})
 
 	t.Run("multiple roles, no full access", func(t *testing.T) {
-		roles := []string{"single-value", "multiple-values"}
+		// TODO: maybe shouldn't test this here
+		roles := []string{"single-value", "multiple-values", "unknown-role"}
+		roles, err := app.getUserRoles(roles)
+		assert.Nil(t, err)
+
 		acl := app.ACLMap["single-value"]
 		want, err := acl.PrepareLF(app.rolesToRawACL(roles))
 		assert.Nil(t, err)
