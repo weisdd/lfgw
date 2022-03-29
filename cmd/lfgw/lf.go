@@ -23,19 +23,22 @@ func (app *application) replaceLFByName(filters []metricsql.LabelFilter, newFilt
 	return newFilters
 }
 
+// isFakePositiveRegexp returns true if the given filter is a positive regexp that doesn't contain special symbols, e.g. namespace=~"kube-system"
+func (app *application) isFakePositiveRegexp(filter metricsql.LabelFilter) bool {
+	if filter.IsRegexp && !filter.IsNegative {
+		if !strings.ContainsAny(filter.Value, `.+*?^$()[]{}|\`) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // shouldBeModified helps to understand whether the original label filter has to be mofified. It returns true if [the list of original filters contains either a fake positive regexp (no special symbols, e.g. namespace=~"kube-system") or a non-regexp filter] and [newFilter is a matching positive regexp]. Target label is taken from the newFilter.
 func (app *application) shouldBeModified(filters []metricsql.LabelFilter, newFilter metricsql.LabelFilter) bool {
 	for _, filter := range filters {
 		if filter.Label == newFilter.Label && newFilter.IsRegexp && !newFilter.IsNegative {
-			isFakePositiveRegexp := false
-
-			if filter.IsRegexp && !filter.IsNegative {
-				if !strings.ContainsAny(filter.Value, `.+*?^$()[]{}|\`) {
-					isFakePositiveRegexp = true
-				}
-			}
-
-			if !filter.IsRegexp || isFakePositiveRegexp {
+			if !filter.IsRegexp || app.isFakePositiveRegexp(filter) {
 				// Prometheus treats all regexp queries as anchored, whereas our raw regexp doesn't have them. So, we should take anchored values.
 				re, err := metricsql.CompileRegexpAnchored(newFilter.Value)
 				// There shouldn't be any errors, though, just in case, better to skip deduplication

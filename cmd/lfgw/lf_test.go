@@ -127,7 +127,79 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 	}
 }
 
-func TestShouldBeModified(t *testing.T) {
+func TestApplication_isFakePositiveRegexp(t *testing.T) {
+	logger := zerolog.New(nil)
+	app := &application{
+		logger: &logger,
+	}
+
+	t.Run("Not regexp", func(t *testing.T) {
+		filter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "minio",
+			IsRegexp:   false,
+			IsNegative: false,
+		}
+
+		want := false
+		got := app.isFakePositiveRegexp(filter)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("Fake positive regexp", func(t *testing.T) {
+		filter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "minio",
+			IsRegexp:   true,
+			IsNegative: false,
+		}
+
+		want := true
+		got := app.isFakePositiveRegexp(filter)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("Fake negative regexp", func(t *testing.T) {
+		filter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "minio",
+			IsRegexp:   false,
+			IsNegative: true,
+		}
+
+		want := false
+		got := app.isFakePositiveRegexp(filter)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("Real positive regexp", func(t *testing.T) {
+		filter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "min.*",
+			IsRegexp:   true,
+			IsNegative: false,
+		}
+
+		want := false
+		got := app.isFakePositiveRegexp(filter)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("Real negative regexp", func(t *testing.T) {
+		filter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "min.*",
+			IsRegexp:   true,
+			IsNegative: true,
+		}
+
+		want := false
+		got := app.isFakePositiveRegexp(filter)
+		assert.Equal(t, want, got)
+	})
+}
+
+func TestApplication_shouldBeModified(t *testing.T) {
 	logger := zerolog.New(nil)
 	app := &application{
 		logger: &logger,
