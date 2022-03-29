@@ -60,7 +60,7 @@ func (app *application) appendOrMergeRegexpLF(filters []metricsql.LabelFilter, n
 	skipAddingNewFilter := false
 
 	for _, filter := range filters {
-		// Inspect label filters with the targe name
+		// Inspect label filters with the target name
 		if filter.Label == newFilter.Label {
 			// Inspect regexp filters of the same type (negative, positive)
 			if filter.IsRegexp && filter.IsNegative == newFilter.IsNegative {
