@@ -133,6 +133,50 @@ func TestShouldBeModified(t *testing.T) {
 		logger: &logger,
 	}
 
+	t.Run("Original filters do not contain target label", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label:      "pod",
+				Value:      "minio",
+				IsRegexp:   false,
+				IsNegative: false,
+			},
+		}
+
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "min.*|control.*",
+			IsRegexp:   true,
+			IsNegative: false,
+		}
+
+		want := true
+		got := app.shouldBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should be modified, because the original filters do not contain the target label")
+	})
+
+	t.Run("Original filter is a regexp", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label:      "namespace",
+				Value:      "min.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+		}
+
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "min.*|control.*",
+			IsRegexp:   true,
+			IsNegative: false,
+		}
+
+		want := true
+		got := app.shouldBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should be modified, because the original filter is a regexp")
+	})
+
 	filters := []metricsql.LabelFilter{
 		{
 			Label:      "namespace",
@@ -142,96 +186,91 @@ func TestShouldBeModified(t *testing.T) {
 		},
 	}
 
-	filtersRegexp := []metricsql.LabelFilter{
-		{
+	t.Run("Not a regexp", func(t *testing.T) {
+		newFilter := metricsql.LabelFilter{
+			Label: "namespace",
+			Value: "default",
+		}
+
+		want := true
+		got := app.shouldBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
+	})
+
+	t.Run("Negative non-matching complex regexp", func(t *testing.T) {
+		newFilter := metricsql.LabelFilter{
 			Label:      "namespace",
-			Value:      "min.*",
+			Value:      "kube.*|control.*",
+			IsRegexp:   true,
+			IsNegative: true,
+		}
+
+		want := true
+		got := app.shouldBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
+	})
+
+	t.Run("Negative non-matching simple regexp", func(t *testing.T) {
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "ini.*",
+			IsRegexp:   true,
+			IsNegative: true,
+		}
+
+		want := true
+		got := app.shouldBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
+	})
+
+	t.Run("Negative matching complex regexp", func(t *testing.T) {
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "min.*|control.*",
+			IsRegexp:   true,
+			IsNegative: true,
+		}
+		want := true
+		got := app.shouldBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
+	})
+
+	t.Run("Positive non-matching complex regex", func(t *testing.T) {
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "kube.*|control.*",
 			IsRegexp:   true,
 			IsNegative: false,
-		},
-	}
+		}
 
-	filtersDifferentLabel := []metricsql.LabelFilter{
-		{
-			Label:      "pod",
-			Value:      "minio",
-			IsRegexp:   false,
+		want := true
+		got := app.shouldBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should be modified, because the new filter doesn't match original filter")
+	})
+
+	t.Run("Positive non-matching simple regexp", func(t *testing.T) {
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "ini.*",
+			IsRegexp:   true,
+			IsNegative: true,
+		}
+
+		want := true
+		got := app.shouldBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should be modified, because the new filter doesn't match original filter")
+	})
+
+	t.Run("The only matching case", func(t *testing.T) {
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "min.*|control.*",
+			IsRegexp:   true,
 			IsNegative: false,
-		},
-	}
+		}
 
-	newFilterPlain := metricsql.LabelFilter{
-		Label: "namespace",
-		Value: "default",
-	}
-
-	got := app.shouldBeModified(filters, newFilterPlain)
-	assert.Equal(t, true, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
-
-	newFilterNegativeNonMatchingComplexRegexp := metricsql.LabelFilter{
-		Label:      "namespace",
-		Value:      "kube.*|control.*",
-		IsRegexp:   true,
-		IsNegative: true,
-	}
-
-	got = app.shouldBeModified(filters, newFilterNegativeNonMatchingComplexRegexp)
-	assert.Equal(t, true, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
-
-	newFilterNegativeNonMatchingSimpleRegexp := metricsql.LabelFilter{
-		Label:      "namespace",
-		Value:      "ini.*",
-		IsRegexp:   true,
-		IsNegative: true,
-	}
-
-	got = app.shouldBeModified(filters, newFilterNegativeNonMatchingSimpleRegexp)
-	assert.Equal(t, true, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
-
-	newFilterNegativeMatchingComplexRegexp := metricsql.LabelFilter{
-		Label:      "namespace",
-		Value:      "min.*|control.*",
-		IsRegexp:   true,
-		IsNegative: true,
-	}
-
-	got = app.shouldBeModified(filters, newFilterNegativeMatchingComplexRegexp)
-	assert.Equal(t, true, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
-
-	newFilterPositiveNonMatchingComplexRegexp := metricsql.LabelFilter{
-		Label:      "namespace",
-		Value:      "kube.*|control.*",
-		IsRegexp:   true,
-		IsNegative: false,
-	}
-
-	got = app.shouldBeModified(filters, newFilterPositiveNonMatchingComplexRegexp)
-	assert.Equal(t, true, got, "Original expression should be modified, because the new filter doesn't match original filter")
-
-	newFilterPositiveNonMatchingSimpleRegexp := metricsql.LabelFilter{
-		Label:      "namespace",
-		Value:      "ini.*",
-		IsRegexp:   true,
-		IsNegative: true,
-	}
-
-	got = app.shouldBeModified(filters, newFilterPositiveNonMatchingSimpleRegexp)
-	assert.Equal(t, true, got, "Original expression should be modified, because the new filter doesn't match original filter")
-
-	newFilterPositiveMatchingComplexRegexp := metricsql.LabelFilter{
-		Label:      "namespace",
-		Value:      "min.*|control.*",
-		IsRegexp:   true,
-		IsNegative: false,
-	}
-
-	got = app.shouldBeModified(filtersDifferentLabel, newFilterPositiveMatchingComplexRegexp)
-	assert.Equal(t, true, got, "Original expression should be modified, because the original filter doesn't contain the target label")
-
-	got = app.shouldBeModified(filtersRegexp, newFilterPositiveMatchingComplexRegexp)
-	assert.Equal(t, true, got, "Original expression should be modified, because the original filter is a regexp")
-
-	// The only matching case
-	got = app.shouldBeModified(filters, newFilterPositiveMatchingComplexRegexp)
-	assert.Equal(t, false, got, "Original expression should NOT be modified, because the original filter is not a regexp and the new filter is a matching positive regexp")
+		want := false
+		got := app.shouldBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is not a regexp and the new filter is a matching positive regexp")
+	})
 }
