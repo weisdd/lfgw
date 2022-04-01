@@ -199,7 +199,7 @@ func TestApplication_isFakePositiveRegexp(t *testing.T) {
 	})
 }
 
-func TestApplication_shouldBeModified(t *testing.T) {
+func TestApplication_shouldNotBeModified(t *testing.T) {
 	logger := zerolog.New(nil)
 	app := &application{
 		logger: &logger,
@@ -222,8 +222,8 @@ func TestApplication_shouldBeModified(t *testing.T) {
 			IsNegative: false,
 		}
 
-		want := true
-		got := app.shouldBeModified(filters, newFilter)
+		want := false
+		got := app.shouldNotBeModified(filters, newFilter)
 		assert.Equal(t, want, got, "Original expression should be modified, because the original filters do not contain the target label")
 	})
 
@@ -244,8 +244,8 @@ func TestApplication_shouldBeModified(t *testing.T) {
 			IsNegative: false,
 		}
 
-		want := true
-		got := app.shouldBeModified(filters, newFilter)
+		want := false
+		got := app.shouldNotBeModified(filters, newFilter)
 		assert.Equal(t, want, got, "Original expression should be modified, because the original filter is a regexp")
 	})
 
@@ -264,8 +264,8 @@ func TestApplication_shouldBeModified(t *testing.T) {
 			Value: "default",
 		}
 
-		want := true
-		got := app.shouldBeModified(filters, newFilter)
+		want := false
+		got := app.shouldNotBeModified(filters, newFilter)
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
 	})
 
@@ -277,8 +277,8 @@ func TestApplication_shouldBeModified(t *testing.T) {
 			IsNegative: true,
 		}
 
-		want := true
-		got := app.shouldBeModified(filters, newFilter)
+		want := false
+		got := app.shouldNotBeModified(filters, newFilter)
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
 	})
 
@@ -290,8 +290,8 @@ func TestApplication_shouldBeModified(t *testing.T) {
 			IsNegative: true,
 		}
 
-		want := true
-		got := app.shouldBeModified(filters, newFilter)
+		want := false
+		got := app.shouldNotBeModified(filters, newFilter)
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
 	})
 
@@ -302,8 +302,8 @@ func TestApplication_shouldBeModified(t *testing.T) {
 			IsRegexp:   true,
 			IsNegative: true,
 		}
-		want := true
-		got := app.shouldBeModified(filters, newFilter)
+		want := false
+		got := app.shouldNotBeModified(filters, newFilter)
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
 	})
 
@@ -315,8 +315,8 @@ func TestApplication_shouldBeModified(t *testing.T) {
 			IsNegative: false,
 		}
 
-		want := true
-		got := app.shouldBeModified(filters, newFilter)
+		want := false
+		got := app.shouldNotBeModified(filters, newFilter)
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter doesn't match original filter")
 	})
 
@@ -328,11 +328,70 @@ func TestApplication_shouldBeModified(t *testing.T) {
 			IsNegative: true,
 		}
 
-		want := true
-		got := app.shouldBeModified(filters, newFilter)
+		want := false
+		got := app.shouldNotBeModified(filters, newFilter)
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter doesn't match original filter")
 	})
 
+	// TODO: adjust test?
+	t.Run("Repeating regexp filters", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label:      "namespace",
+				Value:      "min.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			{
+				Label:      "namespace",
+				Value:      "min.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+		}
+
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "mini.*",
+			IsRegexp:   true,
+			IsNegative: false,
+		}
+
+		want := false
+		got := app.shouldNotBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should be modified, because the original filters contain regexp filters")
+	})
+
+	// TODO: adjust test?
+	t.Run("Mix of regexp and non-regexp filters", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label:      "namespace",
+				Value:      "minio",
+				IsRegexp:   false,
+				IsNegative: false,
+			},
+			{
+				Label:      "namespace",
+				Value:      "min.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+		}
+
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "mini.*",
+			IsRegexp:   true,
+			IsNegative: false,
+		}
+
+		want := false
+		got := app.shouldNotBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should be modified, because the original filters contain the same label multiple times (regexp, non-regexp)")
+	})
+
+	// TODO: move more to matching cases
 	// Matching cases
 
 	t.Run("Original filter is not a regexp, new filter matches", func(t *testing.T) {
@@ -343,8 +402,8 @@ func TestApplication_shouldBeModified(t *testing.T) {
 			IsNegative: false,
 		}
 
-		want := false
-		got := app.shouldBeModified(filters, newFilter)
+		want := true
+		got := app.shouldNotBeModified(filters, newFilter)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is not a regexp and the new filter is a matching positive regexp")
 	})
 
@@ -365,8 +424,86 @@ func TestApplication_shouldBeModified(t *testing.T) {
 			IsNegative: false,
 		}
 
-		want := false
-		got := app.shouldBeModified(filters, newFilter)
+		want := true
+		got := app.shouldNotBeModified(filters, newFilter)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is a fake positive regexp (it doesn't contain any special characters, should have been a non-regexp expression, e.g. namespace=~\"kube-system\") and the new filter is a matching positive regexp")
+	})
+
+	t.Run("Repeating filters", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label:      "namespace",
+				Value:      "minio",
+				IsRegexp:   false,
+				IsNegative: false,
+			},
+			{
+				Label:      "namespace",
+				Value:      "minio",
+				IsRegexp:   false,
+				IsNegative: false,
+			},
+		}
+
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "mini.*",
+			IsRegexp:   true,
+			IsNegative: false,
+		}
+
+		want := true
+		got := app.shouldNotBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter contains the same matching non-regexp label multiple times")
+	})
+
+	t.Run("Original filters are a mix of a fake regexp and a non-regexp filters, new filter matches", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label:      "namespace",
+				Value:      "minio",
+				IsRegexp:   false,
+				IsNegative: false,
+			},
+			{
+				Label:      "namespace",
+				Value:      "minio",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+		}
+
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "mini.*",
+			IsRegexp:   true,
+			IsNegative: false,
+		}
+
+		want := true
+		got := app.shouldNotBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should NOT be modified, because original filters contain a mix of a fake regexp and a non-regexp filters (basically, they're equal in results)")
+	})
+
+	t.Run("Original filter are a new filter contain the same regexp", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label:      "namespace",
+				Value:      "min.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+		}
+
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "min.*",
+			IsRegexp:   true,
+			IsNegative: false,
+		}
+
+		want := true
+		got := app.shouldNotBeModified(filters, newFilter)
+		assert.Equal(t, want, got, "Original expression should NOT be modified, because original filter and a new filter contain the same regexp")
 	})
 }

@@ -3,7 +3,13 @@
 ## 0.9.0
 
 - Key changes:
-  - Added support for deduplication (enabled by default). Previously, a label filter with positive regexp was always added or replaced. Now, if a new label filter is a positive regexp that matches the original filter (either a non-regexp or a regexp with no special symbols, e.g. `namespace=~"kube-system"`), then the original expression is not modified. The behaviour can be turned off through `ENABLE_DEDUPLICATION: false`;
+  - Added support for deduplication (enabled by default, can be turned off through `ENABLE_DEDUPLICATION: false`):
+    - Previously, a label filter with a positive regexp was always added or replaced if a user had a regexp policy. Some examples:
+      - Policy: `min.*, kube.*`, query: `container_memory_working_set_bytes{namespace="minio"}`, new query: `container_memory_working_set_bytes{namespace="minio", namespace=~"min.*, kube.*"}` => No noticeable side-effects.
+      - Policy: `min.*, kube.*`, query: `container_memory_working_set_bytes{namespace=~"minio"}`, new query: `container_memory_working_set_bytes{namespace=~"min.*, kube.*"}` => A user would get metrics for all namespaces permitted in his policy. Some dashboards distributed through [kube-prometheus-stack chart](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack/) still have such expressions (although, it's not something that should have been there in the first place);
+      <!-- TODO: add repeating filters? -->
+    <!-- TODO: update -->
+    - Now, if a new label filter is a positive regexp that matches the original filter (either a non-regexp or a regexp with no special symbols, e.g. `namespace=~"kube-system"`), then the original expression is not modified.
   - ACLs:
     - ACLs containing one word regexp expressions will have their anchors stripped;
     - Anchors are no longer added to complex ACLs, because Prometheus always treats regex expressions as fully anchored;

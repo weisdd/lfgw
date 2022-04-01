@@ -88,6 +88,10 @@ To summarize, here are the key principles used for rewriting requests:
 * `minio, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"minio|stolon"` is added;
 * `min.*, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"min.*|stolon"` is added.
 
+Special cases when deduplication is enabled:
+
+* (TODO: rewrite) If a new label filter is a positive regexp that matches the original filter (either a non-regexp or a regexp with no special symbols, e.g. `namespace=~"kube-system"`), then the original expression is not modified.
+
 Note: Regex matches are fully anchored. A match of `env=~"foo"` is treated as `env=~"^foo$"` ([Source](https://prometheus.io/docs/prometheus/latest/querying/basics/)). Please, be careful, they are not expected to be used in ACLs.
 
 Note: a user is free to have multiple roles matching the contents of `acl.yaml`. Basically, there are 3 cases:

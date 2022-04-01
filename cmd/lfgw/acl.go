@@ -166,6 +166,7 @@ func (app *application) rolesToRawACL(roles []string) string {
 	return strings.Join(rawACLs, ", ")
 }
 
+// TODO: return ACL? That would help with deduplication
 // getLF returns a label filter associated with a specified list of roles.
 func (app *application) getLF(roles []string) (metricsql.LabelFilter, error) {
 	if len(roles) == 0 {
