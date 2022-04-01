@@ -136,23 +136,6 @@ func (app *application) modifyMetricExpr(expr metricsql.Expr, acl ACL) metricsql
 	// Update label filters
 	metricsql.VisitAll(newExpr, modifyLabelFilter)
 
-	// TODO: log somehow?
-	// app.logger.Debug().Caller().
-	// 	Msgf("Rewrote query %s to query %s", expr.AppendString(nil), newExpr.AppendString(nil))
-
-	return newExpr
-}
-
-// optimizeMetricExpr optimizes expressions. More details: https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize
-func (app *application) optimizeMetricExpr(expr metricsql.Expr) metricsql.Expr {
-	newExpr := metricsql.Optimize(expr)
-
-	// TODO: log somehow?
-	// if !app.equalExpr(expr, newExpr) {
-	// 	app.logger.Debug().Caller().
-	// 		Msgf("Optimized query %s to query %s", expr.AppendString(nil), newExpr.AppendString(nil))
-	// }
-
 	return newExpr
 }
 
@@ -182,7 +165,7 @@ func (app *application) prepareQueryParams(params *url.Values, acl ACL) (string,
 
 					expr = app.modifyMetricExpr(expr, acl)
 					if app.OptimizeExpressions {
-						expr = app.optimizeMetricExpr(expr)
+						expr = metricsql.Optimize(expr)
 					}
 
 					newVal := string(expr.AppendString(nil))
