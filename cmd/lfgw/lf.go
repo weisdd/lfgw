@@ -34,20 +34,29 @@ func (app *application) isFakePositiveRegexp(filter metricsql.LabelFilter) bool 
 	return false
 }
 
-// TODO: update description?
-// shouldBeModified helps to understand whether the original label filters have to be modified. The function returns false if any of the original filters do not match expectations described further. It returns false if [the list of original filters contains either a fake positive regexp (no special symbols, e.g. namespace=~"kube-system") or a non-regexp filter] and [newFilter is a matching positive regexp]. Also, if the original and the new filter are equal. Target label is taken from the newFilter.
-func (app *application) shouldNotBeModified(filters []metricsql.LabelFilter, newFilter metricsql.LabelFilter) bool {
+// TODO: simplify description
+// shouldBeModified helps to understand whether the original label filters have to be modified. The function returns false if any of the original filters do not match expectations described further. It returns false if [the list of original filters contains either a fake positive regexp (no special symbols, e.g. namespace=~"kube-system") or a non-regexp filter] and [acl.LabelFilter is a matching positive regexp]. Also, if the original and the new filter are equal; if original filter is a subfilter of the new filter; if acl gives full access. Target label is taken from the acl.LabelFilter.
+func (app *application) shouldNotBeModified(filters []metricsql.LabelFilter, acl ACL) bool {
+	if acl.Fullaccess {
+		return true
+	}
+
 	seen := 0
 	seenUnmodified := 0
 
+	// TODO: move to a map?
+	// TODO: move to NormalizedACL?
+	rawSubACLs := strings.Split(acl.RawACL, ", ")
+	newLF := acl.LabelFilter
+
 	for _, filter := range filters {
-		if filter.Label == newFilter.Label && newFilter.IsRegexp && !newFilter.IsNegative {
+		if filter.Label == newLF.Label && newLF.IsRegexp && !newLF.IsNegative {
 			seen++
 
 			// Target: non-regexps or fake regexps
 			if !filter.IsRegexp || app.isFakePositiveRegexp(filter) {
 				// Prometheus treats all regexp queries as anchored, whereas our raw regexp doesn't have them. So, we should take anchored values.
-				re, err := metricsql.CompileRegexpAnchored(newFilter.Value)
+				re, err := metricsql.CompileRegexpAnchored(newLF.Value)
 				// There shouldn't be any errors, though, just in case, better to skip deduplication
 				if err == nil && re.MatchString(filter.Value) {
 					seenUnmodified++
@@ -56,12 +65,20 @@ func (app *application) shouldNotBeModified(filters []metricsql.LabelFilter, new
 			}
 
 			// Target: both are positive regexps with the same value
-			if app.equalLabelFilters(filter, newFilter) {
+			if app.equalLabelFilters(filter, newLF) {
 				seenUnmodified++
 				continue
 			}
 
-			// TODO: check if matches any subfilter
+			// Target: both are positive regexps, filter is a subfilter of the newLF
+			if filter.IsRegexp && !filter.IsNegative {
+				for _, rawSubACL := range rawSubACLs {
+					if filter.Value == rawSubACL {
+						seenUnmodified++
+						continue
+					}
+				}
+			}
 		}
 	}
 
@@ -98,20 +115,20 @@ func (app *application) appendOrMergeRegexpLF(filters []metricsql.LabelFilter, n
 	return newFilters
 }
 
-// modifyMetricExpr walks through the query and modifies only metricsql.Expr based on the supplied label filter.
-func (app *application) modifyMetricExpr(expr metricsql.Expr, newFilter metricsql.LabelFilter) metricsql.Expr {
+// modifyMetricExpr walks through the query and modifies only metricsql.Expr based on the supplied acl with label filter.
+func (app *application) modifyMetricExpr(expr metricsql.Expr, acl ACL) metricsql.Expr {
 	newExpr := metricsql.Clone(expr)
 
 	// We cannot pass any extra parameters, so we need to use a closure
 	// to say which label filter to add
 	modifyLabelFilter := func(expr metricsql.Expr) {
 		if me, ok := expr.(*metricsql.MetricExpr); ok {
-			if newFilter.IsRegexp {
-				if !app.shouldNotBeModified(me.LabelFilters, newFilter) || !app.EnableDeduplication {
-					me.LabelFilters = app.appendOrMergeRegexpLF(me.LabelFilters, newFilter)
+			if acl.LabelFilter.IsRegexp {
+				if !app.EnableDeduplication || !app.shouldNotBeModified(me.LabelFilters, acl) {
+					me.LabelFilters = app.appendOrMergeRegexpLF(me.LabelFilters, acl.LabelFilter)
 				}
 			} else {
-				me.LabelFilters = app.replaceLFByName(me.LabelFilters, newFilter)
+				me.LabelFilters = app.replaceLFByName(me.LabelFilters, acl.LabelFilter)
 			}
 		}
 	}
@@ -150,7 +167,7 @@ func (app *application) equalLabelFilters(lf1, lf2 metricsql.LabelFilter) bool {
 }
 
 // prepareQueryParams rewrites GET/POST "query" and "match" parameters to filter out metrics.
-func (app *application) prepareQueryParams(params *url.Values, lf metricsql.LabelFilter) (string, error) {
+func (app *application) prepareQueryParams(params *url.Values, acl ACL) (string, error) {
 	newParams := &url.Values{}
 
 	for k, vv := range *params {
@@ -163,7 +180,7 @@ func (app *application) prepareQueryParams(params *url.Values, lf metricsql.Labe
 						return "", err
 					}
 
-					expr = app.modifyMetricExpr(expr, lf)
+					expr = app.modifyMetricExpr(expr, acl)
 					if app.OptimizeExpressions {
 						expr = app.optimizeMetricExpr(expr)
 					}

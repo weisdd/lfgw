@@ -43,132 +43,166 @@ func TestACL_ToSlice(t *testing.T) {
 	})
 }
 
-func TestACL_PrepareLF(t *testing.T) {
+func TestACL_PrepareACL(t *testing.T) {
 	acl := &ACL{false, metricsql.LabelFilter{}, ""}
 
 	tests := []struct {
-		name string
-		ns   string
-		want metricsql.LabelFilter
-		fail bool
+		name   string
+		rawACL string
+		want   ACL
+		fail   bool
 	}{
 		{
-			name: ".* (full access)",
-			ns:   ".*",
-			want: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      ".*",
-				IsRegexp:   true,
-				IsNegative: false,
+			name:   ".* (full access)",
+			rawACL: ".*",
+			want: ACL{
+				Fullaccess: true,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      ".*",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: ".*",
 			},
 			fail: false,
 		},
 		{
-			name: "min.*, .*, stolon (full access, same as .*)",
-			ns:   "min.*, .*, stolon",
-			want: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      ".*",
-				IsRegexp:   true,
-				IsNegative: false,
+			name:   "min.*, .*, stolon (full access, same as .*)",
+			rawACL: "min.*, .*, stolon",
+			want: ACL{
+				Fullaccess: true,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      ".*",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: ".*",
 			},
 			fail: false,
 		},
 		{
-			name: "minio (only minio)",
-			ns:   "minio",
-			want: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "minio",
-				IsRegexp:   false,
-				IsNegative: false,
+			name:   "minio (only minio)",
+			rawACL: "minio",
+			want: ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      "minio",
+					IsRegexp:   false,
+					IsNegative: false,
+				},
+				RawACL: "minio",
 			},
 			fail: false,
 		},
 		{
-			name: "min.* (one regexp)",
-			ns:   "min.*",
-			want: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*",
-				IsRegexp:   true,
-				IsNegative: false,
+			name:   "min.* (one regexp)",
+			rawACL: "min.*",
+			want: ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      "min.*",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: "min.*",
 			},
 			fail: false,
 		},
 		{
-			name: "min.* (one anchored regexp)",
-			ns:   "^(min.*)$",
-			want: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*",
-				IsRegexp:   true,
-				IsNegative: false,
+			name:   "min.* (one anchored regexp)",
+			rawACL: "^(min.*)$",
+			want: ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      "min.*",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: "min.*",
 			},
 			fail: false,
 		},
 		{
-			name: "minio, stolon (two namespaces)",
-			ns:   "minio, stolon",
-			want: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "minio|stolon",
-				IsRegexp:   true,
-				IsNegative: false,
+			name:   "minio, stolon (two namespaces)",
+			rawACL: "minio, stolon",
+			want: ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      "minio|stolon",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: "minio, stolon",
 			},
 			fail: false,
 		},
 		{
-			name: "min.*, stolon (regexp and non-regexp)",
-			ns:   "min.*, stolon",
-			want: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*|stolon",
-				IsRegexp:   true,
-				IsNegative: false,
+			name:   "min.*, stolon (regexp and non-regexp)",
+			rawACL: "min.*, stolon",
+			want: ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      "min.*|stolon",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: "min.*, stolon",
+			},
+			fail: false,
+		},
+		// TODO: assign special meaning to this regexp?
+		{
+			name:   ".+ (is regexp)",
+			rawACL: ".+",
+			want: ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      ".+",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: ".+",
 			},
 			fail: false,
 		},
 		{
-			name: ".+ (is regexp)",
-			ns:   ".+",
-			want: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      ".+",
-				IsRegexp:   true,
-				IsNegative: false,
+			name:   "a,b (is a correct regexp)",
+			rawACL: "a,b",
+			want: ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      "a|b",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: "a, b",
 			},
 			fail: false,
 		},
 		{
-			name: "a,b (is a correct regexp)",
-			ns:   "a,b",
-			want: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "a|b",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			fail: false,
-		},
-		{
-			name: "[ (incorrect regexp)",
-			ns:   "[",
-			want: metricsql.LabelFilter{},
-			fail: true,
+			name:   "[ (incorrect regexp)",
+			rawACL: "[",
+			want:   ACL{},
+			fail:   true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := acl.PrepareLF(tt.ns)
+			got, err := acl.PrepareACL(tt.rawACL)
 			if tt.fail {
-				if err == nil {
-					t.Errorf("Expected a non-nil error, though got %s", err)
-				}
+				assert.NotNil(t, err)
 			} else {
-				if got != tt.want {
-					t.Errorf("want %q; got %q", tt.want.AppendString(nil), got.AppendString(nil))
-				}
+				assert.Nil(t, err)
+				assert.Equal(t, tt.want, got)
 			}
 		})
 	}
@@ -208,7 +242,7 @@ func TestACL_LoadACL(t *testing.T) {
 						IsRegexp:   true,
 						IsNegative: false,
 					},
-					RawACL: "ku.*, .*, min.*",
+					RawACL: ".*",
 				},
 			},
 		},
@@ -299,70 +333,7 @@ func saveACLToFile(t testing.TB, f *os.File, content string) {
 	}
 }
 
-func TestApplication_GetUserRoles(t *testing.T) {
-	app := &application{
-		ACLMap: ACLMap{
-			"admin": &ACL{
-				Fullaccess: true,
-				LabelFilter: metricsql.LabelFilter{
-					Label:      "namespace",
-					Value:      ".*",
-					IsRegexp:   true,
-					IsNegative: false,
-				},
-				RawACL: ".*",
-			},
-			"multiple-values": &ACL{
-				Fullaccess: false,
-				LabelFilter: metricsql.LabelFilter{
-					Label:      "namespace",
-					Value:      "ku.*|min.*",
-					IsRegexp:   true,
-					IsNegative: false,
-				},
-				RawACL: "ku.*, min.*",
-			},
-			"single-value": &ACL{
-				Fullaccess: false,
-				LabelFilter: metricsql.LabelFilter{
-					Label:      "namespace",
-					Value:      "default",
-					IsRegexp:   false,
-					IsNegative: false,
-				},
-				RawACL: "default",
-			},
-		},
-	}
-
-	t.Run("0 known roles", func(t *testing.T) {
-		oidcRoles := []string{"unknown-role"}
-
-		_, err := app.getUserRoles(oidcRoles)
-		assert.NotNil(t, err)
-	})
-
-	t.Run("1 known role", func(t *testing.T) {
-		oidcRoles := []string{"single-value", "uknown-role"}
-		want := []string{"single-value"}
-
-		got, err := app.getUserRoles(oidcRoles)
-		assert.Nil(t, err)
-		assert.Equal(t, want, got)
-
-	})
-
-	t.Run("multiple known roles", func(t *testing.T) {
-		oidcRoles := []string{"single-value", "multiple-values"}
-		want := []string{"single-value", "multiple-values"}
-
-		got, err := app.getUserRoles(oidcRoles)
-		assert.Nil(t, err)
-		assert.Equal(t, want, got)
-	})
-}
-
-func TestApplication_GetLF(t *testing.T) {
+func TestApplication_rolesToRawACL(t *testing.T) {
 	app := &application{
 		ACLMap: ACLMap{
 			"admin": &ACL{
@@ -400,38 +371,131 @@ func TestApplication_GetLF(t *testing.T) {
 
 	t.Run("0 roles", func(t *testing.T) {
 		roles := []string{}
-		_, err := app.getLF(roles)
+		_, err := app.rolesToRawACL(roles)
+		assert.NotNil(t, err)
+	})
+
+	t.Run("0 known roles", func(t *testing.T) {
+		roles := []string{"unknown-role"}
+		_, err := app.rolesToRawACL(roles)
+		assert.NotNil(t, err)
+	})
+
+	t.Run("1 known role", func(t *testing.T) {
+		roles := []string{"multiple-values"}
+		got, err := app.rolesToRawACL(roles)
+
+		want := "ku.*, min.*"
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("multiple known roles", func(t *testing.T) {
+		roles := []string{"multiple-values", "single-value"}
+		got, err := app.rolesToRawACL(roles)
+
+		want := "ku.*, min.*, default"
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("Empty rawACL", func(t *testing.T) {
+		app := &application{
+			ACLMap: ACLMap{
+				"empty-acl": &ACL{},
+			},
+		}
+		roles := []string{"empty-acl"}
+
+		_, err := app.rolesToRawACL(roles)
+		assert.NotNil(t, err)
+	})
+}
+
+func TestApplication_GetACL(t *testing.T) {
+	app := &application{
+		ACLMap: ACLMap{
+			"admin": &ACL{
+				Fullaccess: true,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      ".*",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: ".*",
+			},
+			"multiple-values": &ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      "ku.*|min.*",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
+				RawACL: "ku.*, min.*",
+			},
+			"single-value": &ACL{
+				Fullaccess: false,
+				LabelFilter: metricsql.LabelFilter{
+					Label:      "namespace",
+					Value:      "default",
+					IsRegexp:   false,
+					IsNegative: false,
+				},
+				RawACL: "default",
+			},
+		},
+	}
+
+	t.Run("0 roles", func(t *testing.T) {
+		roles := []string{}
+		_, err := app.getACL(roles)
+		assert.NotNil(t, err)
+	})
+
+	t.Run("0 known roles", func(t *testing.T) {
+		roles := []string{"unknown-role"}
+		_, err := app.getACL(roles)
 		assert.NotNil(t, err)
 	})
 
 	t.Run("1 role", func(t *testing.T) {
 		roles := []string{"single-value"}
-		want := app.ACLMap["single-value"].LabelFilter
-		got, err := app.getLF(roles)
+		want := *app.ACLMap["single-value"]
+		got, err := app.getACL(roles)
 		assert.Nil(t, err)
-		assert.Equal(t, got, want)
+		assert.Equal(t, want, got)
 	})
 
 	t.Run("multiple roles, full access", func(t *testing.T) {
 		roles := []string{"admin", "multiple-values"}
-		want := app.ACLMap["admin"].LabelFilter
-		got, err := app.getLF(roles)
+		want := *app.ACLMap["admin"]
+		got, err := app.getACL(roles)
 		assert.Nil(t, err)
-		assert.Equal(t, got, want)
+		assert.Equal(t, want, got)
 	})
 
 	t.Run("multiple roles, no full access", func(t *testing.T) {
-		// TODO: maybe shouldn't test this here
 		roles := []string{"single-value", "multiple-values", "unknown-role"}
-		roles, err := app.getUserRoles(roles)
+		knownRoles := []string{"single-value", "multiple-values"}
+
+		rawACL, err := app.rolesToRawACL(knownRoles)
 		assert.Nil(t, err)
 
-		acl := app.ACLMap["single-value"]
-		want, err := acl.PrepareLF(app.rolesToRawACL(roles))
-		assert.Nil(t, err)
+		want := ACL{
+			Fullaccess: false,
+			RawACL:     rawACL,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "default|ku.*|min.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+		}
 
-		got, err := app.getLF(roles)
+		got, err := app.getACL(roles)
 		assert.Nil(t, err)
-		assert.Equal(t, got, want)
+		assert.Equal(t, want, got)
 	})
 }

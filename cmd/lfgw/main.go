@@ -42,8 +42,7 @@ type application struct {
 
 type contextKey string
 
-const contextKeyHasFullaccess = contextKey("hasFullaccess")
-const contextKeyLabelFilter = contextKey("labelFilter")
+const contextKeyACL = contextKey("acl")
 
 func main() {
 	zlog.Logger = zlog.Output(os.Stdout)
