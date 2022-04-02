@@ -88,9 +88,11 @@ To summarize, here are the key principles used for rewriting requests:
 * `minio, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"minio|stolon"` is added;
 * `min.*, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"min.*|stolon"` is added.
 
-Special cases when deduplication is enabled:
+When deduplication is enabled, these queries will stay unmodified:
 
-* (TODO: rewrite) If a new label filter is a positive regexp that matches the original filter (either a non-regexp or a regexp with no special symbols, e.g. `namespace=~"kube-system"`), then the original expression is not modified.
+* `min.*, stolon`, query: `request_duration{namespace="minio"}` - a non-regexp label filter that matches policy;
+* `min.*, stolon`, query: `request_duration{namespace=~"minio"}` - a "fake" regexp (no special symbols) label filter that matches policy;
+* `min.*, stolon`, query: `request_duration{namespace=~"min.*"}` - a label filter is a subfilter of the policy.
 
 Note: Regex matches are fully anchored. A match of `env=~"foo"` is treated as `env=~"^foo$"` ([Source](https://prometheus.io/docs/prometheus/latest/querying/basics/)). Please, be careful, they are not expected to be used in ACLs.
 

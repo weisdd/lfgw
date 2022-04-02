@@ -24,11 +24,11 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 		Fullaccess: false,
 		LabelFilter: metricsql.LabelFilter{
 			Label:      "namespace",
-			Value:      "kube.*|control.*",
+			Value:      "min.*|stolon",
 			IsRegexp:   true,
 			IsNegative: false,
 		},
-		RawACL: "kube.*, control.*",
+		RawACL: "min.*, stolon",
 	}
 
 	// Technically, it's not really possible to create such ACL, but better to keep an eye on it anyway
@@ -36,11 +36,11 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 		Fullaccess: false,
 		LabelFilter: metricsql.LabelFilter{
 			Label:      "namespace",
-			Value:      "kube.*|control.*",
+			Value:      "min.*|stolon",
 			IsRegexp:   true,
 			IsNegative: true,
 		},
-		RawACL: "kube.*, control.*",
+		RawACL: "min.*, stolon",
 	}
 
 	tests := []struct {
@@ -51,67 +51,104 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 		want                string
 	}{
 		{
-			name:                "Complex example, Non-Regexp, no label",
+			name:                "Complex example, Non-Regexp, no label; append",
 			query:               `(histogram_quantile(0.9, rate (request_duration{job="demo"}[5m])) > 0.05 and rate(demo_api_request_duration_seconds_count{job="demo"}[5m]) > 1)`,
 			EnableDeduplication: false,
 			newFilter:           newACLPlain,
 			want:                `(histogram_quantile(0.9, rate(request_duration{job="demo", namespace="default"}[5m])) > 0.05) and (rate(demo_api_request_duration_seconds_count{job="demo", namespace="default"}[5m]) > 1)`,
 		},
 		{
-			name:                "Non-Regexp, no label, append",
+			name:                "Non-Regexp, no label; append",
 			query:               `request_duration{job="demo"}`,
 			EnableDeduplication: false,
 			newFilter:           newACLPlain,
 			want:                `request_duration{job="demo", namespace="default"}`,
 		},
 		{
-			name:                "Non-Regexp, same label name, replace",
+			name:                "Non-Regexp, same label name; replace",
 			query:               `request_duration{job="demo", namespace="other"}`,
 			EnableDeduplication: false,
 			newFilter:           newACLPlain,
 			want:                `request_duration{job="demo", namespace="default"}`,
 		},
 		{
-			name:                "Regexp, negative, append",
+			name:                "Regexp, negative; append",
 			query:               `request_duration{job="demo", namespace="other"}`,
 			EnableDeduplication: false,
 			newFilter:           newACLNegativeRegexp,
-			want:                `request_duration{job="demo", namespace="other", namespace!~"kube.*|control.*"}`,
+			want:                `request_duration{job="demo", namespace="other", namespace!~"min.*|stolon"}`,
 		},
 		{
-			name:                "Regexp, negative, merge",
+			name:                "Regexp, negative; merge",
 			query:               `request_duration{job="demo", namespace!~"other.*"}`,
 			EnableDeduplication: false,
 			newFilter:           newACLNegativeRegexp,
-			want:                `request_duration{job="demo", namespace!~"other.*|kube.*|control.*"}`,
+			want:                `request_duration{job="demo", namespace!~"other.*|min.*|stolon"}`,
 		},
 		{
-			name:                "Regexp, positive, append",
+			name:                "Regexp, positive; append",
 			query:               `request_duration{job="demo", namespace="other"}`,
 			EnableDeduplication: false,
 			newFilter:           newACLPositiveRegexp,
-			want:                `request_duration{job="demo", namespace="other", namespace=~"kube.*|control.*"}`,
+			want:                `request_duration{job="demo", namespace="other", namespace=~"min.*|stolon"}`,
 		},
 		{
-			name:                "Regexp, positive, replace",
+			name:                "Regexp, positive; replace",
 			query:               `request_duration{job="demo", namespace=~"other.*"}`,
 			EnableDeduplication: false,
 			newFilter:           newACLPositiveRegexp,
-			want:                `request_duration{job="demo", namespace=~"kube.*|control.*"}`,
+			want:                `request_duration{job="demo", namespace=~"min.*|stolon"}`,
 		},
 		{
-			name:                "Regexp, positive, no changes (deduplicated)",
-			query:               `request_duration{job="demo", namespace="kube-system"}`,
-			EnableDeduplication: true,
-			newFilter:           newACLPositiveRegexp,
-			want:                `request_duration{job="demo", namespace="kube-system"}`,
-		},
-		{
-			name:                "Regexp, positive, append (not deduplicated)",
+			name:                "Regexp, positive; append (not deduplicated)",
 			query:               `request_duration{job="demo", namespace="default"}`,
 			EnableDeduplication: true,
 			newFilter:           newACLPositiveRegexp,
-			want:                `request_duration{job="demo", namespace="default", namespace=~"kube.*|control.*"}`,
+			want:                `request_duration{job="demo", namespace="default", namespace=~"min.*|stolon"}`,
+		},
+		// Examples from readme, deduplication is enabled
+		{
+			name:                "Original filter is a non-regexp, matches policy (deduplicated)",
+			query:               `request_duration{namespace="minio"}`,
+			EnableDeduplication: true,
+			newFilter:           newACLPositiveRegexp,
+			want:                `request_duration{namespace="minio"}`,
+		},
+		{
+			name:                "Original filter is a fake regexp (deduplicated)",
+			query:               `request_duration{namespace=~"minio"}`,
+			EnableDeduplication: true,
+			newFilter:           newACLPositiveRegexp,
+			want:                `request_duration{namespace=~"minio"}`,
+		},
+		{
+			name:                "Original filter is a subfilter of the policy (deduplicated)",
+			query:               `request_duration{namespace=~"min.*"}`,
+			EnableDeduplication: true,
+			newFilter:           newACLPositiveRegexp,
+			want:                `request_duration{namespace=~"min.*"}`,
+		},
+		// Same examples, deduplication is disabled
+		{
+			name:                "Original filter is a non-regexp, matches policy, but deduplication is disabled; append",
+			query:               `request_duration{namespace="minio"}`,
+			EnableDeduplication: false,
+			newFilter:           newACLPositiveRegexp,
+			want:                `request_duration{namespace="minio", namespace=~"min.*|stolon"}`,
+		},
+		{
+			name:                "Original filter is a fake regexp, but deduplication is disabled; append",
+			query:               `request_duration{namespace=~"minio"}`,
+			EnableDeduplication: false,
+			newFilter:           newACLPositiveRegexp,
+			want:                `request_duration{namespace=~"min.*|stolon"}`,
+		},
+		{
+			name:                "Original filter is a subfilter of the policy, but deduplication is disabled; replace",
+			query:               `request_duration{namespace=~"min.*"}`,
+			EnableDeduplication: false,
+			newFilter:           newACLPositiveRegexp,
+			want:                `request_duration{namespace=~"min.*|stolon"}`,
 		},
 	}
 
@@ -410,6 +447,38 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		assert.Equal(t, want, got, "Original expression should be modified, because the original filters contain regexp filters, which are not subfilters of the new filter")
 	})
 
+	t.Run("Multiple regexp filters, one of which is not a subfilter of the new filter", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label:      "namespace",
+				Value:      "min.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			{
+				Label:      "namespace",
+				Value:      "contro.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+		}
+
+		acl := ACL{
+			Fullaccess: false,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "min.*|control.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			RawACL: "min.*, control.*",
+		}
+
+		want := false
+		got := app.shouldNotBeModified(filters, acl)
+		assert.Equal(t, want, got, "Original expression should be modified, because the original filters are regexps, one of which is not a subfilter of the new filter")
+	})
+
 	t.Run("Mix of regexp and non-regexp filters", func(t *testing.T) {
 		filters := []metricsql.LabelFilter{
 			{
@@ -485,6 +554,38 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		want := true
 		got := app.shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is a fake positive regexp (it doesn't contain any special characters, should have been a non-regexp expression, e.g. namespace=~\"kube-system\") and the new filter is a matching positive regexp")
+	})
+
+	t.Run("Multiple regexp filters, new filter matches (subfilters)", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label:      "namespace",
+				Value:      "min.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			{
+				Label:      "namespace",
+				Value:      "control.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+		}
+
+		acl := ACL{
+			Fullaccess: false,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "min.*|control.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			RawACL: "min.*, control.*",
+		}
+
+		want := true
+		got := app.shouldNotBeModified(filters, acl)
+		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filters are subfilters of the new filter")
 	})
 
 	t.Run("Repeating filters, new filter matches", func(t *testing.T) {

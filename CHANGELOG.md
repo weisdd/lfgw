@@ -4,12 +4,11 @@
 
 - Key changes:
   - Added support for deduplication (enabled by default, can be turned off through `ENABLE_DEDUPLICATION: false`):
-    - Previously, a label filter with a positive regexp was always added or replaced if a user had a regexp policy. Some examples:
-      - Policy: `min.*, kube.*`, query: `container_memory_working_set_bytes{namespace="minio"}`, new query: `container_memory_working_set_bytes{namespace="minio", namespace=~"min.*, kube.*"}` => No noticeable side-effects.
-      - Policy: `min.*, kube.*`, query: `container_memory_working_set_bytes{namespace=~"minio"}`, new query: `container_memory_working_set_bytes{namespace=~"min.*, kube.*"}` => A user would get metrics for all namespaces permitted in his policy. Some dashboards distributed through [kube-prometheus-stack chart](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack/) still have such expressions (although, it's not something that should have been there in the first place);
-      <!-- TODO: add repeating filters? -->
-    <!-- TODO: update -->
-    - Now, if a new label filter is a positive regexp that matches the original filter (either a non-regexp or a regexp with no special symbols, e.g. `namespace=~"kube-system"`), then the original expression is not modified.
+    - Previously, a label filter with a positive regexp was always added or replaced if a user had a regexp policy.
+    - When deduplication is enabled, these queries will stay unmodified:
+      - `min.*, stolon`, query: `request_duration{namespace="minio"}` - a non-regexp label filter that matches policy;
+      - `min.*, stolon`, query: `request_duration{namespace=~"minio"}` - a "fake" regexp (no special symbols) label filter that matches policy;
+      - `min.*, stolon`, query: `request_duration{namespace=~"min.*"}` - a label filter is a subfilter of the policy;
   - ACLs:
     - ACLs containing one word regexp expressions will have their anchors stripped;
     - Anchors are no longer added to complex ACLs, because Prometheus always treats regex expressions as fully anchored;
@@ -17,6 +16,8 @@
   - Logs:
     - GET and POST queries are now logged in unescaped form, so it gets easier for a reader to compare original and modified requests;
     - duration is now logged without unit suffix, time is represented in seconds;
+  - Bugfixes:
+    - admin POST-requests failed to get proxied to upstream, because logging middleware was not updating Content-Length after reading PostForm. The issue was introduced in 0.7.0;
   - Added more tests.
 
 ## 0.8.0
