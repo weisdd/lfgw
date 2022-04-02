@@ -68,7 +68,7 @@ func TestACL_PrepareACL(t *testing.T) {
 			fail: false,
 		},
 		{
-			name:   "min.*, .*, stolon (full access, same as .*)",
+			name:   "min.*, .*, stolon (implicit full access, same as .*)",
 			rawACL: "min.*, .*, stolon",
 			want: ACL{
 				Fullaccess: true,
@@ -159,7 +159,7 @@ func TestACL_PrepareACL(t *testing.T) {
 		},
 		// TODO: assign special meaning to this regexp?
 		{
-			name:   ".+ (is regexp)",
+			name:   ".+ (is a regexp)",
 			rawACL: ".+",
 			want: ACL{
 				Fullaccess: false,

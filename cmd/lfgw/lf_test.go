@@ -14,8 +14,10 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 	newACLPlain := ACL{
 		Fullaccess: false,
 		LabelFilter: metricsql.LabelFilter{
-			Label: "namespace",
-			Value: "default",
+			Label:      "namespace",
+			Value:      "default",
+			IsRegexp:   false,
+			IsNegative: false,
 		},
 		RawACL: "default",
 	}
@@ -47,63 +49,63 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 		name                string
 		query               string
 		EnableDeduplication bool
-		newFilter           ACL
+		acl                 ACL
 		want                string
 	}{
 		{
 			name:                "Complex example, Non-Regexp, no label; append",
 			query:               `(histogram_quantile(0.9, rate (request_duration{job="demo"}[5m])) > 0.05 and rate(demo_api_request_duration_seconds_count{job="demo"}[5m]) > 1)`,
 			EnableDeduplication: false,
-			newFilter:           newACLPlain,
+			acl:                 newACLPlain,
 			want:                `(histogram_quantile(0.9, rate(request_duration{job="demo", namespace="default"}[5m])) > 0.05) and (rate(demo_api_request_duration_seconds_count{job="demo", namespace="default"}[5m]) > 1)`,
 		},
 		{
 			name:                "Non-Regexp, no label; append",
 			query:               `request_duration{job="demo"}`,
 			EnableDeduplication: false,
-			newFilter:           newACLPlain,
+			acl:                 newACLPlain,
 			want:                `request_duration{job="demo", namespace="default"}`,
 		},
 		{
 			name:                "Non-Regexp, same label name; replace",
 			query:               `request_duration{job="demo", namespace="other"}`,
 			EnableDeduplication: false,
-			newFilter:           newACLPlain,
+			acl:                 newACLPlain,
 			want:                `request_duration{job="demo", namespace="default"}`,
 		},
 		{
 			name:                "Regexp, negative; append",
 			query:               `request_duration{job="demo", namespace="other"}`,
 			EnableDeduplication: false,
-			newFilter:           newACLNegativeRegexp,
+			acl:                 newACLNegativeRegexp,
 			want:                `request_duration{job="demo", namespace="other", namespace!~"min.*|stolon"}`,
 		},
 		{
 			name:                "Regexp, negative; merge",
 			query:               `request_duration{job="demo", namespace!~"other.*"}`,
 			EnableDeduplication: false,
-			newFilter:           newACLNegativeRegexp,
+			acl:                 newACLNegativeRegexp,
 			want:                `request_duration{job="demo", namespace!~"other.*|min.*|stolon"}`,
 		},
 		{
 			name:                "Regexp, positive; append",
 			query:               `request_duration{job="demo", namespace="other"}`,
 			EnableDeduplication: false,
-			newFilter:           newACLPositiveRegexp,
+			acl:                 newACLPositiveRegexp,
 			want:                `request_duration{job="demo", namespace="other", namespace=~"min.*|stolon"}`,
 		},
 		{
 			name:                "Regexp, positive; replace",
 			query:               `request_duration{job="demo", namespace=~"other.*"}`,
 			EnableDeduplication: false,
-			newFilter:           newACLPositiveRegexp,
+			acl:                 newACLPositiveRegexp,
 			want:                `request_duration{job="demo", namespace=~"min.*|stolon"}`,
 		},
 		{
 			name:                "Regexp, positive; append (not deduplicated)",
 			query:               `request_duration{job="demo", namespace="default"}`,
 			EnableDeduplication: true,
-			newFilter:           newACLPositiveRegexp,
+			acl:                 newACLPositiveRegexp,
 			want:                `request_duration{job="demo", namespace="default", namespace=~"min.*|stolon"}`,
 		},
 		// Examples from readme, deduplication is enabled
@@ -111,21 +113,21 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 			name:                "Original filter is a non-regexp, matches policy (deduplicated)",
 			query:               `request_duration{namespace="minio"}`,
 			EnableDeduplication: true,
-			newFilter:           newACLPositiveRegexp,
+			acl:                 newACLPositiveRegexp,
 			want:                `request_duration{namespace="minio"}`,
 		},
 		{
 			name:                "Original filter is a fake regexp (deduplicated)",
 			query:               `request_duration{namespace=~"minio"}`,
 			EnableDeduplication: true,
-			newFilter:           newACLPositiveRegexp,
+			acl:                 newACLPositiveRegexp,
 			want:                `request_duration{namespace=~"minio"}`,
 		},
 		{
 			name:                "Original filter is a subfilter of the policy (deduplicated)",
 			query:               `request_duration{namespace=~"min.*"}`,
 			EnableDeduplication: true,
-			newFilter:           newACLPositiveRegexp,
+			acl:                 newACLPositiveRegexp,
 			want:                `request_duration{namespace=~"min.*"}`,
 		},
 		// Same examples, deduplication is disabled
@@ -133,21 +135,21 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 			name:                "Original filter is a non-regexp, matches policy, but deduplication is disabled; append",
 			query:               `request_duration{namespace="minio"}`,
 			EnableDeduplication: false,
-			newFilter:           newACLPositiveRegexp,
+			acl:                 newACLPositiveRegexp,
 			want:                `request_duration{namespace="minio", namespace=~"min.*|stolon"}`,
 		},
 		{
 			name:                "Original filter is a fake regexp, but deduplication is disabled; append",
 			query:               `request_duration{namespace=~"minio"}`,
 			EnableDeduplication: false,
-			newFilter:           newACLPositiveRegexp,
+			acl:                 newACLPositiveRegexp,
 			want:                `request_duration{namespace=~"min.*|stolon"}`,
 		},
 		{
 			name:                "Original filter is a subfilter of the policy, but deduplication is disabled; replace",
 			query:               `request_duration{namespace=~"min.*"}`,
 			EnableDeduplication: false,
-			newFilter:           newACLPositiveRegexp,
+			acl:                 newACLPositiveRegexp,
 			want:                `request_duration{namespace=~"min.*|stolon"}`,
 		},
 	}
@@ -165,10 +167,8 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 			}
 			originalExpr := metricsql.Clone(expr)
 
-			newExpr := app.modifyMetricExpr(expr, tt.newFilter)
-			if !app.equalExpr(originalExpr, expr) {
-				t.Errorf("%s: The original expression got modified. Use metricsql.Clone() before modifying any expression.", tt.name)
-			}
+			newExpr := app.modifyMetricExpr(expr, tt.acl)
+			assert.Equal(t, originalExpr, expr, "The original expression got modified. Use metricsql.Clone() before modifying any expression.")
 
 			got := string(newExpr.AppendString(nil))
 			assert.Equal(t, tt.want, got)
@@ -182,7 +182,7 @@ func TestApplication_isFakePositiveRegexp(t *testing.T) {
 		logger: &logger,
 	}
 
-	t.Run("Not regexp", func(t *testing.T) {
+	t.Run("Not a regexp", func(t *testing.T) {
 		filter := metricsql.LabelFilter{
 			Label:      "namespace",
 			Value:      "minio",
@@ -212,7 +212,7 @@ func TestApplication_isFakePositiveRegexp(t *testing.T) {
 		filter := metricsql.LabelFilter{
 			Label:      "namespace",
 			Value:      "minio",
-			IsRegexp:   false,
+			IsRegexp:   true,
 			IsNegative: true,
 		}
 
@@ -415,7 +415,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter doesn't match original filter")
 	})
 
-	t.Run("Repeating regexp filters", func(t *testing.T) {
+	t.Run("Repeating regexp filters (not subfilters)", func(t *testing.T) {
 		filters := []metricsql.LabelFilter{
 			{
 				Label:      "namespace",
@@ -479,7 +479,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		assert.Equal(t, want, got, "Original expression should be modified, because the original filters are regexps, one of which is not a subfilter of the new filter")
 	})
 
-	t.Run("Mix of regexp and non-regexp filters", func(t *testing.T) {
+	t.Run("Mix of a non-matching regexp and a non-regexp filters", func(t *testing.T) {
 		filters := []metricsql.LabelFilter{
 			{
 				Label:      "namespace",
@@ -508,7 +508,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 
 		want := false
 		got := app.shouldNotBeModified(filters, acl)
-		assert.Equal(t, want, got, "Original expression should be modified, because the original filters contain the same label multiple times (regexp, non-regexp), and the original regexp is not a subfilter of the new filter")
+		assert.Equal(t, want, got, "Original expression should be modified, because amongst the original filters with the same label (regexp, non-regexp) there is a regexp, which is not a subfilter of the new filter")
 	})
 
 	// Matching cases
@@ -554,6 +554,32 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		want := true
 		got := app.shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is a fake positive regexp (it doesn't contain any special characters, should have been a non-regexp expression, e.g. namespace=~\"kube-system\") and the new filter is a matching positive regexp")
+	})
+
+	t.Run("Original filter is a regexp and a subfilter of the new ACL", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label:      "namespace",
+				Value:      "min.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+		}
+
+		acl := ACL{
+			Fullaccess: false,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "min.*|control.*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			RawACL: "min.*, control.*",
+		}
+
+		want := true
+		got := app.shouldNotBeModified(filters, acl)
+		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is a regexp subfilter of the ACL")
 	})
 
 	t.Run("Multiple regexp filters, new filter matches (subfilters)", func(t *testing.T) {
@@ -617,7 +643,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 
 		want := true
 		got := app.shouldNotBeModified(filters, acl)
-		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter contains the same non-regexp label multiple times and the new filter matches")
+		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter contains the same non-regexp label filter multiple times and the new filter matches")
 	})
 
 	t.Run("Original filters are a mix of a fake regexp and a non-regexp filters and the new filter matches", func(t *testing.T) {
@@ -693,31 +719,5 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		want := true
 		got := app.shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the new filter gives full access")
-	})
-
-	t.Run("Original filter is a regexp and a subfilter of the new ACL", func(t *testing.T) {
-		filters := []metricsql.LabelFilter{
-			{
-				Label:      "namespace",
-				Value:      "min.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-		}
-
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*|control.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "min.*, control.*",
-		}
-
-		want := true
-		got := app.shouldNotBeModified(filters, acl)
-		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is a regexp subfilter of the ACL")
 	})
 }

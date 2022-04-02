@@ -148,7 +148,7 @@ func (app *application) loadACL() (ACLMap, error) {
 	return aclMap, nil
 }
 
-// rolesToRawACL returns a comma-separated list of ACL definitions for all specified roles. Basically, it lets you dynamically generate a raw ACL as if it was supplied via acl.yaml
+// rolesToRawACL returns a comma-separated list of ACL definitions for all specified roles. Basically, it lets you dynamically generate a raw ACL as if it was supplied through acl.yaml
 func (app *application) rolesToRawACL(roles []string) (string, error) {
 	rawACLs := make([]string, 0, len(roles))
 

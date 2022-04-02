@@ -35,7 +35,7 @@ func (app *application) isFakePositiveRegexp(filter metricsql.LabelFilter) bool 
 }
 
 // TODO: simplify description
-// shouldBeModified helps to understand whether the original label filters have to be modified. The function returns false if any of the original filters do not match expectations described further. It returns false if [the list of original filters contains either a fake positive regexp (no special symbols, e.g. namespace=~"kube-system") or a non-regexp filter] and [acl.LabelFilter is a matching positive regexp]. Also, if original filter is a subfilter of the new filter or has the same value; if acl gives full access. Target label is taken from the acl.LabelFilter.
+// shouldNotBeModified helps to understand whether the original label filters have to be modified. The function returns false if any of the original filters do not match expectations described further. It returns true if [the list of original filters contains either a fake positive regexp (no special symbols, e.g. namespace=~"kube-system") or a non-regexp filter] and [acl.LabelFilter is a matching positive regexp]. Also, if original filter is a subfilter of the new filter or has the same value; if acl gives full access. Target label is taken from the acl.LabelFilter.
 func (app *application) shouldNotBeModified(filters []metricsql.LabelFilter, acl ACL) bool {
 	if acl.Fullaccess {
 		return true
@@ -79,7 +79,7 @@ func (app *application) shouldNotBeModified(filters []metricsql.LabelFilter, acl
 	return seen > 0 && seen == seenUnmodified
 }
 
-// appendOrMergeRegexpLF appends label filter or merges its value in case it's a regexp with the same name and of the same type (negative / positive).
+// appendOrMergeRegexpLF appends label filter or merges its value in case it's a regexp with the same label name and of the same type (negative / positive).
 func (app *application) appendOrMergeRegexpLF(filters []metricsql.LabelFilter, newFilter metricsql.LabelFilter) []metricsql.LabelFilter {
 	newFilters := make([]metricsql.LabelFilter, 0, cap(filters)+1)
 
@@ -131,11 +131,6 @@ func (app *application) modifyMetricExpr(expr metricsql.Expr, acl ACL) metricsql
 	metricsql.VisitAll(newExpr, modifyLabelFilter)
 
 	return newExpr
-}
-
-// equalExpr says whether two expressions are equal.
-func (app *application) equalExpr(expr1 metricsql.Expr, expr2 metricsql.Expr) bool {
-	return string(expr1.AppendString(nil)) == string(expr2.AppendString(nil))
 }
 
 // prepareQueryParams rewrites GET/POST "query" and "match" parameters to filter out metrics.

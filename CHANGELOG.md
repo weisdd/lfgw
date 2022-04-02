@@ -4,7 +4,7 @@
 
 - Key changes:
   - Added support for deduplication (enabled by default, can be turned off through `ENABLE_DEDUPLICATION: false`):
-    - Previously, a label filter with a positive regexp was always added or replaced if a user had a regexp policy.
+    - Previously, a label filter with a positive regexp was always added or replaced if a user had a regexp policy;
     - When deduplication is enabled, these queries will stay unmodified:
       - `min.*, stolon`, query: `request_duration{namespace="minio"}` - a non-regexp label filter that matches policy;
       - `min.*, stolon`, query: `request_duration{namespace=~"minio"}` - a "fake" regexp (no special symbols) label filter that matches policy;
@@ -12,7 +12,7 @@
   - ACLs:
     - ACLs containing one word regexp expressions will have their anchors stripped;
     - Anchors are no longer added to complex ACLs, because Prometheus always treats regex expressions as fully anchored;
-    - Fix: if a user had multiple roles, and one of the roles contained `.*` amongst other entries, getLF would pass all roles to PrepareLF instead of directly returning a full access role. It didn't cause any security issues as PrepareLF would still return a full access label filter.
+    - Fix: if a user had multiple roles, and one of the roles contained `.*` amongst other entries, getLF would pass all roles to PrepareLF instead of directly returning a full access role. It didn't cause any security issues as PrepareLF would still return a full access label filter;
   - Logs:
     - GET and POST queries are now logged in unescaped form, so it gets easier for a reader to compare original and modified requests;
     - duration is now logged without unit suffix, time is represented in seconds;

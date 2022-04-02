@@ -34,7 +34,7 @@ OIDC roles are expected to be present in `roles` within a jwt token.
 | Module               | Variable                    | Default Value | Description                                                  |
 | -------------------- | --------------------------- | ------------- | ------------------------------------------------------------ |
 | **General settings** |                             |               |                                                              |
-|                      | `ENABLE_DEDUPLICATION`      | `true`        | Whether to enable deduplication. If a new label filter is a positive regexp that matches the original non-regexp filter, then the original expression is not modified. |
+|                      | `ENABLE_DEDUPLICATION`      | `true`        | Whether to enable deduplication, which leaves some of the requests unmodified if they match the target policy. Examples can be found in the "acl.yaml syntax" section. |
 |                      | `OPTIMIZE_EXPRESSIONS`      | `true`        | Whether to automatically optimize expressions for non-full access requests. [More details](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) |
 |                      |                             |               |                                                              |
 | **Logging**          |                             |               |                                                              |
