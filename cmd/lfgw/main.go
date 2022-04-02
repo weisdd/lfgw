@@ -28,6 +28,7 @@ type application struct {
 	LogNoColor              bool          `env:"LOG_NO_COLOR" envDefault:"false"`
 	UpstreamURL             *url.URL      `env:"UPSTREAM_URL,required"`
 	OptimizeExpressions     bool          `env:"OPTIMIZE_EXPRESSIONS" envDefault:"true"`
+	EnableDeduplication     bool          `env:"ENABLE_DEDUPLICATION" envDefault:"true"`
 	SafeMode                bool          `env:"SAFE_MODE" envDefault:"true"`
 	SetProxyHeaders         bool          `env:"SET_PROXY_HEADERS" envDefefault:"false"`
 	ACLPath                 string        `env:"ACL_PATH" envDefault:"./acl.yaml"`
@@ -41,8 +42,7 @@ type application struct {
 
 type contextKey string
 
-const contextKeyHasFullaccess = contextKey("hasFullaccess")
-const contextKeyLabelFilter = contextKey("labelFilter")
+const contextKeyACL = contextKey("acl")
 
 func main() {
 	zlog.Logger = zlog.Output(os.Stdout)
@@ -57,6 +57,7 @@ func main() {
 	}
 
 	zerolog.CallerMarshalFunc = app.lshortfile
+	zerolog.DurationFieldUnit = time.Second
 
 	err := env.Parse(app)
 	if err != nil {
@@ -77,6 +78,11 @@ func main() {
 	if err != nil {
 		app.logger.Fatal().Caller().
 			Err(err).Msgf("Failed to load ACL")
+	}
+
+	for role, acl := range app.ACLMap {
+		app.logger.Info().Caller().
+			Msgf("Loaded role definition for %s: %q (converted to %s)", role, acl.RawACL, acl.LabelFilter.AppendString(nil))
 	}
 
 	app.logger.Info().Caller().

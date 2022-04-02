@@ -34,6 +34,7 @@ OIDC roles are expected to be present in `roles` within a jwt token.
 | Module               | Variable                    | Default Value | Description                                                  |
 | -------------------- | --------------------------- | ------------- | ------------------------------------------------------------ |
 | **General settings** |                             |               |                                                              |
+|                      | `ENABLE_DEDUPLICATION`      | `true`        | Whether to enable deduplication, which leaves some of the requests unmodified if they match the target policy. Examples can be found in the "acl.yaml syntax" section. |
 |                      | `OPTIMIZE_EXPRESSIONS`      | `true`        | Whether to automatically optimize expressions for non-full access requests. [More details](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) |
 |                      |                             |               |                                                              |
 | **Logging**          |                             |               |                                                              |
@@ -75,8 +76,8 @@ team0: .*                # all metrics
 team1: min.*, .*, stolon # all metrics, it's the same as .*
 team2: minio             # only those with namespace="minio"
 team3: min.*             # only those matching namespace=~"min.*"
-team4: minio, stolon     # only those matching namespace=~"^(minio|stolon)$"
-team5: min.*, stolon     # only those matching namespace=~"^(min.*|stolon)$"
+team4: minio, stolon     # only those matching namespace=~"minio|stolon"
+team5: min.*, stolon     # only those matching namespace=~"min.*|stolon"
 ```
 
 To summarize, here are the key principles used for rewriting requests:
@@ -84,8 +85,16 @@ To summarize, here are the key principles used for rewriting requests:
 * `.*` - all requests are simply forwarded to an upstream;
 * `minio` - all label filters with the `namespace` label are removed, then `namespace="minio"` is added;
 * `min.*` -  positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"mi.*"` is added;
-* `minio, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"^(minio|stolon)$"` is added;
-* `min.*, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"^(min.*|stolon)$"` is added.
+* `minio, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"minio|stolon"` is added;
+* `min.*, stolon` - positive regex-match label filters (`namespace=~"X"`) are removed, then `namespace=~"min.*|stolon"` is added.
+
+When deduplication is enabled, these queries will stay unmodified:
+
+* `min.*, stolon`, query: `request_duration{namespace="minio"}` - a non-regexp label filter that matches policy;
+* `min.*, stolon`, query: `request_duration{namespace=~"minio"}` - a "fake" regexp (no special symbols) label filter that matches policy;
+* `min.*, stolon`, query: `request_duration{namespace=~"min.*"}` - a label filter is a subfilter of the policy.
+
+Note: Regex matches are fully anchored. A match of `env=~"foo"` is treated as `env=~"^foo$"` ([Source](https://prometheus.io/docs/prometheus/latest/querying/basics/)). Please, be careful, they are not expected to be used in ACLs.
 
 Note: a user is free to have multiple roles matching the contents of `acl.yaml`. Basically, there are 3 cases:
 
@@ -105,6 +114,4 @@ Note: a user is free to have multiple roles matching the contents of `acl.yaml`.
 * add CLI interface (currently, only environment variables are used);
 * configurable JMESPath for the `roles` attribute;
 * OIDC callback to support for proxying Prometheus web-interface itself;
-* structured logging (it'll require an intermediate interface for logging `httputil`'s error logs);
-* simple deduplication if there is any performance issue (another option: use `trickster` for request optimizations);
 * add a helm chart.

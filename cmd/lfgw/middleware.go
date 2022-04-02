@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
 	"github.com/rs/zerolog/hlog"
 )
 
@@ -35,16 +34,22 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next = hlog.RequestIDHandler("req_id", "Request-Id")(next)
 
-		err := r.ParseForm()
-		if err != nil {
-			app.clientError(w, http.StatusBadRequest)
-			return
-		}
-
 		if app.Debug {
+			err := r.ParseForm()
+			if err != nil {
+				app.clientError(w, http.StatusBadRequest)
+				return
+			}
+
+			// Once r.ParseForm() is called, we need to update ContentLength, otherwise the request will fail
+			postForm := r.PostForm.Encode()
+			newBody := strings.NewReader(postForm)
+			r.ContentLength = newBody.Size()
+			r.Body = io.NopCloser(newBody)
+
 			// If any of those are empty, they won't get logged
-			app.enrichDebugLogContext(r, "get_params", r.URL.Query().Encode())
-			app.enrichDebugLogContext(r, "post_params", r.PostForm.Encode())
+			app.enrichDebugLogContext(r, "get_params", app.unescapedURLQuery(r.URL.Query().Encode()))
+			app.enrichDebugLogContext(r, "post_params", app.unescapedURLQuery(postForm))
 		}
 
 		if app.LogRequests || app.Debug {
@@ -55,7 +60,7 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 					Stringer("url", r.URL).
 					Int("status", status).
 					Int("size", size).
-					Str("duration", duration.String()).
+					Dur("duration", duration).
 					Msg("")
 			})(next)
 		}
@@ -136,7 +141,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 
 		app.enrichLogContext(r, "email", claims.Email)
 
-		userRoles, err := app.getUserRoles(claims.Roles)
+		acl, err := app.getACL(claims.Roles)
 		if err != nil {
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msg("")
@@ -144,19 +149,9 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		lf, err := app.getLF(userRoles)
-		if err != nil {
-			hlog.FromRequest(r).Error().Caller().
-				Err(err).Msg("")
-			app.clientErrorMessage(w, http.StatusUnauthorized, err)
-			return
-		}
-		app.enrichDebugLogContext(r, "label_filter", string(lf.AppendString(nil)))
+		app.enrichDebugLogContext(r, "label_filter", string(acl.LabelFilter.AppendString(nil)))
 
-		hasFullaccess := app.HasFullaccessValue(lf.Value)
-
-		ctx = context.WithValue(ctx, contextKeyHasFullaccess, hasFullaccess)
-		ctx = context.WithValue(ctx, contextKeyLabelFilter, lf)
+		ctx = context.WithValue(ctx, contextKeyACL, acl)
 		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)
@@ -176,18 +171,17 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			return
 		}
 
-		hasFullaccess, ok := r.Context().Value(contextKeyHasFullaccess).(bool)
-		if ok && hasFullaccess {
-			hlog.FromRequest(r).Debug().Caller().
-				Msg("User has full access, request is not modified")
-			next.ServeHTTP(w, r)
+		acl, ok := r.Context().Value(contextKeyACL).(ACL)
+		if !ok {
+			// Should never happen. It means OIDC middleware hasn't done it's job
+			app.serverError(w, r, fmt.Errorf("ACL is not set in the context"))
 			return
 		}
 
-		lf, ok := r.Context().Value(contextKeyLabelFilter).(metricsql.LabelFilter)
-		if !ok {
-			// Should never happen. It means OIDC middleware hasn't done it's job
-			app.serverError(w, r, fmt.Errorf("LF is not set in the context"))
+		if acl.Fullaccess {
+			hlog.FromRequest(r).Debug().Caller().
+				Msg("User has full access, request is not modified")
+			next.ServeHTTP(w, r)
 			return
 		}
 
@@ -199,7 +193,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 
 		// Adjust GET params
 		getParams := r.URL.Query()
-		newGetParams, err := app.prepareQueryParams(&getParams, lf)
+		newGetParams, err := app.prepareQueryParams(&getParams, acl)
 		if err != nil {
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msg("")
@@ -207,12 +201,12 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			return
 		}
 		r.URL.RawQuery = newGetParams
-		app.enrichDebugLogContext(r, "new_get_params", newGetParams)
+		app.enrichDebugLogContext(r, "new_get_params", app.unescapedURLQuery(newGetParams))
 
 		// Adjust POST params
 		// Partially inspired by https://github.com/bitsbeats/prometheus-acls/blob/master/internal/labeler/middleware.go
 		if r.Method == http.MethodPost {
-			newPostParams, err := app.prepareQueryParams(&r.PostForm, lf)
+			newPostParams, err := app.prepareQueryParams(&r.PostForm, acl)
 			if err != nil {
 				hlog.FromRequest(r).Error().Caller().
 					Err(err).Msg("")
@@ -222,7 +216,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			newBody := strings.NewReader(newPostParams)
 			r.ContentLength = newBody.Size()
 			r.Body = io.NopCloser(newBody)
-			app.enrichDebugLogContext(r, "new_post_params", newPostParams)
+			app.enrichDebugLogContext(r, "new_post_params", app.unescapedURLQuery(newPostParams))
 		}
 
 		next.ServeHTTP(w, r)

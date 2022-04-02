@@ -48,50 +48,75 @@ func (a *ACL) toSlice(str string) ([]string, error) {
 	return buffer, nil
 }
 
-// PrepareLF returns a label filter based on a rule definition (non-regexp for one namespace, regexp - for many)
-func (a *ACL) PrepareLF(ns string) (metricsql.LabelFilter, error) {
+// TODO: update description once NormalizedACL field is introduced
+// PrepareACL returns an ACL based on a rule definition (non-regexp for one namespace, regexp - for many). .RawACL in the resulting value will contain a normalized value (anchors stripped, implicit admin will have only .*).
+func (a *ACL) PrepareACL(rawACL string) (ACL, error) {
 	var lf = metricsql.LabelFilter{
 		Label:      "namespace",
 		IsNegative: false,
+		IsRegexp:   false,
 	}
 
-	// TODO: deduplication of ns?
-
-	buffer, err := a.toSlice(ns)
+	buffer, err := a.toSlice(rawACL)
 	if err != nil {
-		return metricsql.LabelFilter{}, err
+		return ACL{}, err
+	}
+
+	// If .* is in the slice, then we can omit any other value
+	for _, v := range buffer {
+		// TODO: move to a helper?
+		if v == ".*" {
+			// Note: with this approach, we intentionally omit other values in the resulting ACL
+			return a.getFullaccessACL(), nil
+		}
 	}
 
 	if len(buffer) == 1 {
-		lf.Value = buffer[0]
+		// TODO: move to a helper?
 		if strings.ContainsAny(buffer[0], `.+*?^$()[]{}|\`) {
 			lf.IsRegexp = true
+			// Trim anchors as they're not needed for Prometheus, and not expected in the app.shouldBeModified function
+			buffer[0] = strings.TrimLeft(buffer[0], "^")
+			buffer[0] = strings.TrimLeft(buffer[0], "(")
+			buffer[0] = strings.TrimRight(buffer[0], "$")
+			buffer[0] = strings.TrimRight(buffer[0], ")")
 		}
+		lf.Value = buffer[0]
 	} else {
-		// TODO: work with dicts? What's faster? - Slice or Dict->Slice?
-
-		// If .* is in the slice, then we can omit any other value
-		for _, v := range buffer {
-			// TODO: move to HasFullaccessValue?
-			if v == ".*" {
-				lf.Value = v
-				lf.IsRegexp = true
-				return lf, nil
-			}
-		}
-
-		lf.Value = fmt.Sprintf("^(%s)$", strings.Join(buffer, "|"))
+		// "Regex matches are fully anchored. A match of env=~"foo" is treated as env=~"^foo$"." https://prometheus.io/docs/prometheus/latest/querying/basics/
+		lf.Value = strings.Join(buffer, "|")
 		lf.IsRegexp = true
 	}
 
 	if lf.IsRegexp {
 		_, err := regexp.Compile(lf.Value)
 		if err != nil {
-			return metricsql.LabelFilter{}, fmt.Errorf("%s in %q (converted from %q)", err, lf.Value, ns)
+			return ACL{}, fmt.Errorf("%s in %q (converted from %q)", err, lf.Value, rawACL)
 		}
 	}
 
-	return lf, nil
+	acl := ACL{
+		Fullaccess:  false,
+		LabelFilter: lf,
+		// TODO: that should go to NormalizedACL
+		RawACL: strings.Join(buffer, ", "),
+	}
+
+	return acl, nil
+}
+
+// getFullaccessACL returns a fullaccess ACL
+func (a *ACL) getFullaccessACL() ACL {
+	return ACL{
+		Fullaccess: true,
+		LabelFilter: metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      ".*",
+			IsRegexp:   true,
+			IsNegative: false,
+		},
+		RawACL: ".*",
+	}
 }
 
 // loadACL loads ACL from a file
@@ -109,89 +134,83 @@ func (app *application) loadACL() (ACLMap, error) {
 		return aclMap, err
 	}
 
-	for role, ns := range aclYaml {
-		acl := &ACL{}
-		if app.HasFullaccessValue(ns) {
-			acl.Fullaccess = true
+	for role, rawACL := range aclYaml {
+		acl := ACL{}
+
+		acl, err := acl.PrepareACL(rawACL)
+		if err != nil {
+			return ACLMap{}, err
 		}
 
-		lf, err := acl.PrepareLF(ns)
-		if err != nil {
-			return aclMap, err
-		}
-		acl.LabelFilter = lf
-		acl.RawACL = ns
-		aclMap[role] = acl
-		app.logger.Info().Caller().
-			Msgf("Loaded role definition for %s: %q (converted to %s)", role, ns, acl.LabelFilter.AppendString(nil))
+		aclMap[role] = &acl
 	}
 
 	return aclMap, nil
 }
 
-// getUserRoles returns a list of role matches between user's claims and the ACLMap.
-func (app *application) getUserRoles(oidcRoles []string) ([]string, error) {
-	var aclRoles []string
+// rolesToRawACL returns a comma-separated list of ACL definitions for all specified roles. Basically, it lets you dynamically generate a raw ACL as if it was supplied through acl.yaml
+func (app *application) rolesToRawACL(roles []string) (string, error) {
+	rawACLs := make([]string, 0, len(roles))
 
+	for _, role := range roles {
+		acl, exists := app.ACLMap[role]
+		if !exists {
+			return "", fmt.Errorf("Some of the roles are unknown")
+		}
+		if acl.RawACL == "" {
+			return "", fmt.Errorf("%s role contains empty rawACL", role)
+		}
+		rawACLs = append(rawACLs, acl.RawACL)
+	}
+
+	rawACL := strings.Join(rawACLs, ", ")
+	if rawACL == "" {
+		return "", fmt.Errorf("Constructed empty rawACL")
+	}
+
+	return rawACL, nil
+}
+
+// getACL takes a list of roles found in an OIDC claim, removes those that the app is not aware of (not present in app.ACLMap) and then constructs an ACL based on the remaining ones.
+func (app *application) getACL(oidcRoles []string) (ACL, error) {
+	var roles []string
+
+	// Filter out unknown OIDC roles
 	for _, role := range oidcRoles {
 		_, exists := app.ACLMap[role]
 		if exists {
-			aclRoles = append(aclRoles, role)
+			roles = append(roles, role)
 		}
 	}
-
-	if len(aclRoles) > 0 {
-		return aclRoles, nil
-	}
-
-	return []string{}, fmt.Errorf("no matching roles found")
-}
-
-// HasFullaccessValue returns true if a label filter gives access to all namespaces.
-func (app *application) HasFullaccessValue(value string) bool {
-	return value == ".*"
-}
-
-// rolesToRawACL returns a comma-separated list of ACL definitions for all specified roles.
-// Basically, it lets you dynamically generate a raw ACL as if it was supplied via acl.yaml
-func (app *application) rolesToRawACL(roles []string) string {
-	// TODO: rewrite with make?
-	// rawACLs := make([]string, 0, len(roles))
-	var rawACLs []string
-
-	for _, role := range roles {
-		rawACLs = append(rawACLs, app.ACLMap[role].RawACL)
-	}
-
-	return strings.Join(rawACLs, ", ")
-}
-
-// getLF returns a label filter associated with a specified list of roles.
-func (app *application) getLF(roles []string) (metricsql.LabelFilter, error) {
 	if len(roles) == 0 {
-		return metricsql.LabelFilter{}, fmt.Errorf("failed to construct a label filter (no roles supplied)")
+		return ACL{}, fmt.Errorf("no matching roles found")
 	}
 
+	// One role, so we can return existing ACL
 	if len(roles) == 1 {
 		role := roles[0]
-		return app.ACLMap[role].LabelFilter, nil
+		return *app.ACLMap[role], nil
 	}
 
 	// If a user has a fullaccess role, there's no need to check any other one.
 	for _, role := range roles {
 		if app.ACLMap[role].Fullaccess {
-			return app.ACLMap[role].LabelFilter, nil
+			return *app.ACLMap[role], nil
 		}
 	}
 
-	ns := app.rolesToRawACL(roles)
-
-	acl := &ACL{}
-
-	lf, err := acl.PrepareLF(ns)
+	// To simplify creation of composite ACLs, we need to form a raw ACL, so the further process would be equal to what we have for processing acl.yaml
+	rawACL, err := app.rolesToRawACL(roles)
 	if err != nil {
-		return metricsql.LabelFilter{}, err
+		return ACL{}, err
 	}
 
-	return lf, nil
+	acl := ACL{}
+
+	acl, err = acl.PrepareACL(rawACL)
+	if err != nil {
+		return ACL{}, err
+	}
+
+	return acl, nil
 }
