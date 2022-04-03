@@ -140,6 +140,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		}
 
 		app.enrichLogContext(r, "email", claims.Email)
+		app.enrichDebugLogContext(r, "roles", strings.Join(claims.Roles, ", "))
 
 		acl, err := app.getACL(claims.Roles)
 		if err != nil {
