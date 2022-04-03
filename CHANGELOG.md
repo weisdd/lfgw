@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 0.10.0
+
+- Key changes:
+  - Added support for autoconfiguration through Assumed roles (disabled by default, can be enabled through `ASSUMED_ROLES: true`):
+    - In environments, where OIDC-role names match names of namespaces, ACLs can be constructed on the fly (e.g. `["role1", "role2"]` will give access to metrics from namespaces `role1` and `role2`). The roles specified in `acl.yaml` are still considered and get merged with assumed roles;
+    - Thanks to [@aberestyak](https://github.com/aberestyak/) for the idea.
+
 ## 0.9.0
 
 - Key changes:

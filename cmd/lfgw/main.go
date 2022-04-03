@@ -32,6 +32,7 @@ type application struct {
 	SafeMode                bool          `env:"SAFE_MODE" envDefault:"true"`
 	SetProxyHeaders         bool          `env:"SET_PROXY_HEADERS" envDefefault:"false"`
 	ACLPath                 string        `env:"ACL_PATH" envDefault:"./acl.yaml"`
+	AssumedRoles            bool          `env:"ASSUMED_ROLES" envDefault:"false"`
 	OIDCRealmURL            string        `env:"OIDC_REALM_URL,required"`
 	OIDCClientID            string        `env:"OIDC_CLIENT_ID,required"`
 	Port                    int           `env:"PORT" envDefault:"8080"`

@@ -383,18 +383,18 @@ func TestApplication_rolesToRawACL(t *testing.T) {
 
 	t.Run("1 known role", func(t *testing.T) {
 		roles := []string{"multiple-values"}
-		got, err := app.rolesToRawACL(roles)
-
 		want := "ku.*, min.*"
+
+		got, err := app.rolesToRawACL(roles)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	})
 
 	t.Run("multiple known roles", func(t *testing.T) {
 		roles := []string{"multiple-values", "single-value"}
-		got, err := app.rolesToRawACL(roles)
-
 		want := "ku.*, min.*, default"
+
+		got, err := app.rolesToRawACL(roles)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	})
@@ -410,6 +410,28 @@ func TestApplication_rolesToRawACL(t *testing.T) {
 		_, err := app.rolesToRawACL(roles)
 		assert.NotNil(t, err)
 	})
+
+	// Assumed roles enabled
+	app.AssumedRoles = true
+
+	t.Run("0 known roles, 1 is unknown (assumed roles enabled)", func(t *testing.T) {
+		roles := []string{"unknown-role"}
+		want := "unknown-role"
+
+		got, err := app.rolesToRawACL(roles)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("multiple roles, 1 is unknown (assumed roles enabled)", func(t *testing.T) {
+		roles := []string{"multiple-values", "single-value", "unknown-role"}
+		want := "ku.*, min.*, default, unknown-role"
+
+		got, err := app.rolesToRawACL(roles)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
 }
 
 func TestApplication_GetACL(t *testing.T) {
@@ -485,13 +507,73 @@ func TestApplication_GetACL(t *testing.T) {
 
 		want := ACL{
 			Fullaccess: false,
-			RawACL:     rawACL,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
 				Value:      "default|ku.*|min.*",
 				IsRegexp:   true,
 				IsNegative: false,
 			},
+			RawACL: rawACL,
+		}
+
+		got, err := app.getACL(roles)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	// Assumed roles enabled
+	app.AssumedRoles = true
+
+	t.Run("0 known roles, 1 is unknown (assumed roles enabled)", func(t *testing.T) {
+		roles := []string{"unknown-role"}
+
+		want := ACL{
+			Fullaccess: false,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "unknown-role",
+				IsRegexp:   false,
+				IsNegative: false,
+			},
+			RawACL: "unknown-role",
+		}
+
+		got, err := app.getACL(roles)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("multiple roles, 1 is unknown (assumed roles enabled)", func(t *testing.T) {
+		roles := []string{"multiple-values", "single-value", "unknown-role"}
+
+		want := ACL{
+			Fullaccess: false,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "ku.*|min.*|default|unknown-role",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			RawACL: "ku.*, min.*, default, unknown-role",
+		}
+
+		got, err := app.getACL(roles)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("multiple roles, 1 is unknown, 1 gives full access (assumed roles enabled)", func(t *testing.T) {
+		roles := []string{"multiple-values", "admin", "unknown-role"}
+
+		want := ACL{
+			Fullaccess: true,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      ".*",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			RawACL: ".*",
 		}
 
 		got, err := app.getACL(roles)
