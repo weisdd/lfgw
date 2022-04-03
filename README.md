@@ -2,7 +2,9 @@
 
 LFGW is a trivial reverse proxy based on `httputil` and `VictoriaMetrics/metricsql` with a purpose of dynamically rewriting requests to Prometheus-like backends.
 
-More specifically, it manipulates label filters in metric expressions to reduce the scope of metrics exposed to an end user based on user's OIDC-roles.
+More specifically, it manipulates label filters in metric expressions to reduce the scope of metrics exposed to an end user based on user's OIDC-roles. The process is described in more details [here](docs/filtering.md).
+
+Target setup: `grafana -> lfgw -> Prometheus/VictoriaMetrics`.
 
 ## Key features
 
@@ -12,7 +14,8 @@ More specifically, it manipulates label filters in metric expressions to reduce 
 * [automatic expression optimizations](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) for non-full access requests;
 * support for different headers with access tokens (`X-Forwarded-Access-Token`, `X-Auth-Request-Access-Token`, `Authorization`);
 * requests to both `/api/*` and `/federate` endpoints are protected (=rewritten);
-* requests to sensitive endpoints are blocked by default.
+* requests to sensitive endpoints are blocked by default;
+* compatible with both [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) and [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL).
 
 ## Similar projects
 
@@ -24,7 +27,10 @@ Docker images are published on [ghcr.io/weisdd/lfgw](https://github.com/weisdd/l
 
 ## Configuration
 
-OIDC roles are expected to be present in `roles` within a jwt token.
+### Requirements for jwt-tokens
+
+* OIDC-roles must be present in `roles` claim;
+* Client ID specified via `OIDC_CLIENT_ID` must be present in `aud` claim (more details in [environment variables section](#Environment variables)), otherwise token verification will fail.
 
 ### Environment variables
 

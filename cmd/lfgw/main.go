@@ -75,6 +75,14 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
+	if app.AssumedRoles {
+		app.logger.Info().Caller().
+			Msg("Assumed roles mode is on")
+	} else {
+		app.logger.Info().Caller().
+			Msg("Assumed roles mode is off")
+	}
+
 	app.ACLMap, err = app.loadACL()
 	if err != nil {
 		app.logger.Fatal().Caller().
