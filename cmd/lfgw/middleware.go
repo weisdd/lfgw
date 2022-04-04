@@ -140,6 +140,8 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		}
 
 		app.enrichLogContext(r, "email", claims.Email)
+		// NOTE: The field will contain all roles present in the token, not only those that are considered during ACL generation process
+		app.enrichDebugLogContext(r, "roles", strings.Join(claims.Roles, ", "))
 
 		acl, err := app.getACL(claims.Roles)
 		if err != nil {

@@ -154,13 +154,20 @@ func (app *application) rolesToRawACL(roles []string) (string, error) {
 
 	for _, role := range roles {
 		acl, exists := app.ACLMap[role]
-		if !exists {
-			return "", fmt.Errorf("Some of the roles are unknown")
+		if exists {
+			// NOTE: You should never see an empty definitions in .RawACL as those should be removed by toSlice further down the process. The error check below is not necessary, is left as an additional safeguard for now and might get removed in the future.
+			if acl.RawACL == "" {
+				return "", fmt.Errorf("%s role contains empty rawACL", role)
+			}
+			rawACLs = append(rawACLs, acl.RawACL)
+		} else {
+			// NOTE: Strictly speaking, it's getACL who is expected to pass a filtered list of roles in case Assumed roles are disabled. The error check below is not necessary, is left as an additional safeguard for now and might get removed in the future.
+			if !app.AssumedRoles {
+				return "", fmt.Errorf("Some of the roles are unknown and assumed roles are not enabled")
+			}
+			// NOTE: Role names are not linted, so they may contain regular expressions, including the admin definition: .*
+			rawACLs = append(rawACLs, role)
 		}
-		if acl.RawACL == "" {
-			return "", fmt.Errorf("%s role contains empty rawACL", role)
-		}
-		rawACLs = append(rawACLs, acl.RawACL)
 	}
 
 	rawACL := strings.Join(rawACLs, ", ")
@@ -171,31 +178,37 @@ func (app *application) rolesToRawACL(roles []string) (string, error) {
 	return rawACL, nil
 }
 
-// getACL takes a list of roles found in an OIDC claim, removes those that the app is not aware of (not present in app.ACLMap) and then constructs an ACL based on the remaining ones.
+// getACL takes a list of roles found in an OIDC claim and constructs and ACL based on them. If assumed roles are disabled, then only known roles (present in app.ACLMap) are considered.
 func (app *application) getACL(oidcRoles []string) (ACL, error) {
-	var roles []string
+	roles := []string{}
+	assumedRoles := []string{}
 
-	// Filter out unknown OIDC roles
 	for _, role := range oidcRoles {
 		_, exists := app.ACLMap[role]
 		if exists {
+			if app.ACLMap[role].Fullaccess {
+				return *app.ACLMap[role], nil
+			}
 			roles = append(roles, role)
+		} else {
+			assumedRoles = append(assumedRoles, role)
 		}
 	}
+
+	if app.AssumedRoles {
+		roles = append(roles, assumedRoles...)
+	}
+
 	if len(roles) == 0 {
 		return ACL{}, fmt.Errorf("no matching roles found")
 	}
 
-	// One role, so we can return existing ACL
+	// We can return a prebuilt ACL if there's only one role and it's known
 	if len(roles) == 1 {
 		role := roles[0]
-		return *app.ACLMap[role], nil
-	}
-
-	// If a user has a fullaccess role, there's no need to check any other one.
-	for _, role := range roles {
-		if app.ACLMap[role].Fullaccess {
-			return *app.ACLMap[role], nil
+		acl, exists := app.ACLMap[role]
+		if exists {
+			return *acl, nil
 		}
 	}
 

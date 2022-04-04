@@ -2,20 +2,20 @@
 
 LFGW is a trivial reverse proxy based on `httputil` and `VictoriaMetrics/metricsql` with a purpose of dynamically rewriting requests to Prometheus-like backends.
 
-More specifically, it manipulates label filters in metric expressions to reduce the scope of metrics exposed to an end user based on user's OIDC-roles.
+More specifically, it manipulates label filters in metric expressions to reduce the scope of metrics exposed to an end user based on user's OIDC-roles. The process is described in more details [here](docs/filtering.md).
+
+Target setup: `grafana -> lfgw -> Prometheus/VictoriaMetrics`.
 
 ## Key features
 
-* a user is not restricted to just one LFGW-role, you are free to specify a few;
-* non-opinionated proxying of requests with valid jwt tokens - there's Prometheus to decide whether request is valid or not;
 * ACL-based request rewrites with implicit deny;
-* supports Victoria Metrics' PromQL extensions;
-* since it's based on `VictoriaMetrics/metricsql` library, which has way simpler interface than `prometheus`, there is no need to write a separate implementation for every type of MetricExpr on the planet;
+* a user can have multiple roles;
+* support for autoconfiguration in environments, where OIDC-role names match names of namespaces ("assumed roles" mode; thanks to [@aberestyak](https://github.com/aberestyak/) for the idea);
 * [automatic expression optimizations](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) for non-full access requests;
-* it's based on the middleware pattern, so it's easy to implement other, non-OIDC, modes should the need be;
 * support for different headers with access tokens (`X-Forwarded-Access-Token`, `X-Auth-Request-Access-Token`, `Authorization`);
+* requests to both `/api/*` and `/federate` endpoints are protected (=rewritten);
 * requests to sensitive endpoints are blocked by default;
-* requests to both `/api/*` and `/federate` endpoints are protected (=rewritten).
+* compatible with both [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) and [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL).
 
 ## Similar projects
 
@@ -27,13 +27,17 @@ Docker images are published on [ghcr.io/weisdd/lfgw](https://github.com/weisdd/l
 
 ## Configuration
 
-OIDC roles are expected to be present in `roles` within a jwt token.
+### Requirements for jwt-tokens
+
+* OIDC-roles must be present in `roles` claim;
+* Client ID specified via `OIDC_CLIENT_ID` must be present in `aud` claim (more details in [environment variables section](#Environment variables)), otherwise token verification will fail.
 
 ### Environment variables
 
 | Module               | Variable                    | Default Value | Description                                                  |
 | -------------------- | --------------------------- | ------------- | ------------------------------------------------------------ |
 | **General settings** |                             |               |                                                              |
+|                      | `ASSUMED_ROLES`             | `false`       | In environments, where OIDC-role names match names of namespaces, ACLs can be constructed on the fly (e.g. `["role1", "role2"]` will give access to metrics from namespaces `role1` and `role2`). The roles specified in `acl.yaml` are still considered and get merged with assumed roles. Role names may contain regular expressions, including the admin definition `.*`. |
 |                      | `ENABLE_DEDUPLICATION`      | `true`        | Whether to enable deduplication, which leaves some of the requests unmodified if they match the target policy. Examples can be found in the "acl.yaml syntax" section. |
 |                      | `OPTIMIZE_EXPRESSIONS`      | `true`        | Whether to automatically optimize expressions for non-full access requests. [More details](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) |
 |                      |                             |               |                                                              |

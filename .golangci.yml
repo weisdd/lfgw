@@ -1,3 +1,7 @@
+# TODO: remove this section once all linters support go 1.18
+run:
+  go: "1.17"
+
 linters:
   enable:
     - gocritic
@@ -13,7 +17,5 @@ linters:
     # - unparam
 
 linters-settings:
-  gosimple:
-    go: "1.18"
   gocyclo:
     min-complexity: 16
