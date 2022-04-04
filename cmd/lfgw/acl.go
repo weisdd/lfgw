@@ -155,16 +155,17 @@ func (app *application) rolesToRawACL(roles []string) (string, error) {
 	for _, role := range roles {
 		acl, exists := app.ACLMap[role]
 		if exists {
-			// TODO: maybe it should not be checked, because it will be filtered out in toSlice
+			// NOTE: You should never see an empty definitions in .RawACL as those should be removed by toSlice further down the process. The error check below is not necessary, is left as an additional safeguard for now and might get removed in the future.
 			if acl.RawACL == "" {
 				return "", fmt.Errorf("%s role contains empty rawACL", role)
 			}
 			rawACLs = append(rawACLs, acl.RawACL)
 		} else {
-			// TODO: should we care about that error?
+			// NOTE: Strictly speaking, it's getACL who is expected to pass a filtered list of roles in case Assumed roles are disabled. The error check below is not necessary, is left as an additional safeguard for now and might get removed in the future.
 			if !app.AssumedRoles {
 				return "", fmt.Errorf("Some of the roles are unknown and assumed roles are not enabled")
 			}
+			// NOTE: Role names are not linted, so they may contain regular expressions, including the admin definition: .*
 			rawACLs = append(rawACLs, role)
 		}
 	}

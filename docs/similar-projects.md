@@ -9,6 +9,7 @@ Link: [Prometheus filter proxy](https://github.com/hoffie/prometheus-filter-prox
 Minuses:
 
 - based on Prometheus library, so might not support some of Victoria Metrics' extensions;
+- does not support autoconfiguration;
 - it's an overly simple implementation that relies only on URI paths to define the scope of available metrics, so a user might potentially get access to any metrics should the URL become exposed;
 - it's based on http client, thus unlikely to be ready for high volumes of requests;
 - does not allow to filter out requests to sensitive endpoints (like `/admin/tsdb`);
@@ -31,6 +32,7 @@ Pluses:
 Minuses:
 
 - a user cannot have multiple roles (`When you have multiple roles, the first one that is mentioned in prometheus-acls will be used.`);
+- does not support autoconfiguration;
 - based on Prometheus library, so might not support some of Victoria Metrics' extensions;
 - does not allow to filter out requests to sensitive endpoints (like `/admin/tsdb`);
 - does not rewrite requests to `/federate` endpoint (at least, at the time of writing);

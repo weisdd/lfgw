@@ -498,7 +498,7 @@ func TestApplication_GetACL(t *testing.T) {
 		assert.Equal(t, want, got)
 	})
 
-	t.Run("multiple roles, no full access", func(t *testing.T) {
+	t.Run("multiple roles, 1 is unknown, no full access", func(t *testing.T) {
 		roles := []string{"single-value", "multiple-values", "unknown-role"}
 		knownRoles := []string{"single-value", "multiple-values"}
 

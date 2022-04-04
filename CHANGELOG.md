@@ -4,10 +4,10 @@
 
 - Key changes:
   - Added support for autoconfiguration through Assumed roles (disabled by default, can be enabled through `ASSUMED_ROLES: true`):
-    - In environments, where OIDC-role names match names of namespaces, ACLs can be constructed on the fly (e.g. `["role1", "role2"]` will give access to metrics from namespaces `role1` and `role2`). The roles specified in `acl.yaml` are still considered and get merged with assumed roles;
+    - In environments, where OIDC-role names match names of namespaces, ACLs can be constructed on the fly (e.g. `["role1", "role2"]` will give access to metrics from namespaces `role1` and `role2`; `kube.*` - to namespaces starting with `kube.*`, `.*` - to all metrics). The roles specified in `acl.yaml` are still considered and get merged with assumed roles;
     - Thanks to [@aberestyak](https://github.com/aberestyak/) for the idea;
   - Logs:
-    - Log OIDC roles when debug is enabled.
+    - Log OIDC roles when debug is enabled. The field will contain all roles present in the token, not only those that are considered during ACL generation process.
 
 ## 0.9.0
 
