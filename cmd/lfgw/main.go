@@ -6,12 +6,14 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/caarlos0/env/v6"
 	oidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
+	"go.uber.org/automaxprocs/maxprocs"
 )
 
 // Define an application struct to hold the application-wide dependencies for the
@@ -30,7 +32,8 @@ type application struct {
 	OptimizeExpressions     bool          `env:"OPTIMIZE_EXPRESSIONS" envDefault:"true"`
 	EnableDeduplication     bool          `env:"ENABLE_DEDUPLICATION" envDefault:"true"`
 	SafeMode                bool          `env:"SAFE_MODE" envDefault:"true"`
-	SetProxyHeaders         bool          `env:"SET_PROXY_HEADERS" envDefefault:"false"`
+	SetProxyHeaders         bool          `env:"SET_PROXY_HEADERS" envDefault:"false"`
+	AdjustGomaxProcs        bool          `env:"ADJUST_GOMAXPROCS" envDefault:"true"`
 	ACLPath                 string        `env:"ACL_PATH" envDefault:"./acl.yaml"`
 	AssumedRoles            bool          `env:"ASSUMED_ROLES" envDefault:"false"`
 	OIDCRealmURL            string        `env:"OIDC_REALM_URL,required"`
@@ -74,6 +77,17 @@ func main() {
 	if app.Debug {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
+
+	if app.AdjustGomaxProcs {
+		undo, err := maxprocs.Set()
+		defer undo()
+		if err != nil {
+			app.logger.Error().Caller().
+				Msgf("failed to set GOMAXPROCS: %v", err)
+		}
+	}
+	app.logger.Info().Caller().
+		Msgf("Runtime settings: GOMAXPROCS = %d", runtime.GOMAXPROCS(0))
 
 	if app.AssumedRoles {
 		app.logger.Info().Caller().

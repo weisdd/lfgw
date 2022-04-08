@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.11.0
+
+- Key changes:
+  - Automatically set `GOMAXPROCS` to match Linux container CPU quota via [uber-go/automaxprocs](https://github.com/uber-go/automaxprocs).
+
 ## 0.10.0
 
 - Key changes:
