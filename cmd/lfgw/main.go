@@ -33,7 +33,7 @@ type application struct {
 	EnableDeduplication     bool          `env:"ENABLE_DEDUPLICATION" envDefault:"true"`
 	SafeMode                bool          `env:"SAFE_MODE" envDefault:"true"`
 	SetProxyHeaders         bool          `env:"SET_PROXY_HEADERS" envDefault:"false"`
-	AdjustGomaxProcs        bool          `env:"ADJUST_GOMAXPROCS" envDefault:"true"`
+	SetGomaxProcs           bool          `env:"SET_GOMAXPROCS" envDefault:"true"`
 	ACLPath                 string        `env:"ACL_PATH" envDefault:"./acl.yaml"`
 	AssumedRoles            bool          `env:"ASSUMED_ROLES" envDefault:"false"`
 	OIDCRealmURL            string        `env:"OIDC_REALM_URL,required"`
@@ -78,7 +78,7 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
-	if app.AdjustGomaxProcs {
+	if app.SetGomaxProcs {
 		undo, err := maxprocs.Set()
 		defer undo()
 		if err != nil {

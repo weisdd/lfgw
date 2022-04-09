@@ -13,6 +13,7 @@ linters:
     - goconst
     # - prealloc
     - revive
+    - stylecheck
     - unconvert
     # - unparam
 

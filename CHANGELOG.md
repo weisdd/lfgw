@@ -3,7 +3,7 @@
 ## 0.11.0
 
 - Key changes:
-  - Automatically set `GOMAXPROCS` to match Linux container CPU quota via [uber-go/automaxprocs](https://github.com/uber-go/automaxprocs).
+  - Automatically set `GOMAXPROCS` to match Linux container CPU quota via [uber-go/automaxprocs](https://github.com/uber-go/automaxprocs). Enabled by default, can be turned off via `SET_GOMAXPROCS: false`.
 
 ## 0.10.0
 
