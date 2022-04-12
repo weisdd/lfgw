@@ -97,15 +97,25 @@ func main() {
 			Msg("Assumed roles mode is off")
 	}
 
-	app.ACLMap, err = app.loadACL()
-	if err != nil {
-		app.logger.Fatal().Caller().
-			Err(err).Msgf("Failed to load ACL")
-	}
+	if app.ACLPath != "" {
+		app.ACLMap, err = app.loadACL()
+		if err != nil {
+			app.logger.Fatal().Caller().
+				Err(err).Msgf("Failed to load ACL")
+		}
 
-	for role, acl := range app.ACLMap {
+		for role, acl := range app.ACLMap {
+			app.logger.Info().Caller().
+				Msgf("Loaded role definition for %s: %q (converted to %s)", role, acl.RawACL, acl.LabelFilter.AppendString(nil))
+		}
+	} else {
+		if !app.AssumedRoles {
+			app.logger.Fatal().Caller().
+				Msgf("The app cannot run without at least one source of configuration (Non-empty ACL_PATH and/or ASSUMED_ROLES set to true)")
+		}
+
 		app.logger.Info().Caller().
-			Msgf("Loaded role definition for %s: %q (converted to %s)", role, acl.RawACL, acl.LabelFilter.AppendString(nil))
+			Msgf("ACL_PATH is empty, thus predefined roles are not loaded")
 	}
 
 	app.logger.Info().Caller().

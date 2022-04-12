@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.11.1
+
+- Key changes:
+  - Added an option to skip the file with predefined roles through setting `ACL_PATH` to an empty value. This might be useful in environments that fully rely on Assumed Roles (=autoconfiguration).
+
 ## 0.11.0
 
 - Key changes:
