@@ -60,7 +60,7 @@ Docker images are published on [ghcr.io/weisdd/lfgw](https://github.com/weisdd/l
 |                      | `SET_PROXY_HEADERS`         | `false`       | Whether to set proxy headers (`X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host`). |
 |                      |                             |               |                                                              |
 | **OIDC**             |                             |               |                                                              |
-|                      | `ACL_PATH`                  | `./acl.yaml`  | Path to a file with ACL definitions (OIDC role to namespace bindings). |
+|                      | `ACL_PATH`                  | `./acl.yaml`  | Path to a file with ACL definitions (OIDC role to namespace bindings). Skipped if `ACL_PATH` is empty (might be useful when autoconfiguration is enabled through `ASSUMED_ROLES=true`). |
 |                      | `OIDC_REALM_URL`            |               | OIDC Realm URL, e.g. `https://auth.microk8s.localhost/auth/realms/cicd` |
 |                      | `OIDC_CLIENT_ID`            |               | OIDC Client ID (1*)                                          |
 
