@@ -4,6 +4,7 @@ tasks:
   default:
     - task: test
     - task: lint
+    - task: tidy
 
   test:
     cmds:
@@ -13,3 +14,7 @@ tasks:
   lint:
     cmds:
       - golangci-lint run
+
+  tidy:
+    cmds:
+      - go mod tidy

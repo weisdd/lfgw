@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.11.2
+
+- Key changes:
+  - Non-GET / -POST requests are now blocked only when safe mode is enabled.
+
 ## 0.11.1
 
 - Key changes:

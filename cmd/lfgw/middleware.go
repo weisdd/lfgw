@@ -68,27 +68,26 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// prohibitedMethods forbids all the methods aside from "GET" and "POST".
-func (app *application) prohibitedMethodsMiddleware(next http.Handler) http.Handler {
+// safeModeMiddleware forbids access to some HTTP methods and APIs if safe mode is enabled
+func (app *application) safeModeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodPost {
-			w.Header().Set("Allow", fmt.Sprintf("%s, %s", http.MethodGet, http.MethodPost))
-			app.clientError(w, http.StatusMethodNotAllowed)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
+		if app.SafeMode {
+			// TODO: allow OPTIONS?
+			if r.Method != http.MethodGet && r.Method != http.MethodPost {
+				w.Header().Set("Allow", fmt.Sprintf("%s, %s", http.MethodGet, http.MethodPost))
+				app.clientError(w, http.StatusMethodNotAllowed)
+				return
+			}
 
-// prohibitedPaths forbids access to some destinations that should not be proxied.
-func (app *application) prohibitedPathsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if app.SafeMode && app.isUnsafePath(r.URL.Path) {
-			hlog.FromRequest(r).Error().Caller().
-				Msgf("Blocked a request to %s", r.URL.Path)
-			app.clientError(w, http.StatusForbidden)
-			return
+			// TODO: more unsafe paths?
+			if app.isUnsafePath(r.URL.Path) {
+				hlog.FromRequest(r).Error().Caller().
+					Msgf("Blocked a request to %s", r.URL.Path)
+				app.clientError(w, http.StatusForbidden)
+				return
+			}
 		}
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -206,7 +205,6 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		app.enrichDebugLogContext(r, "new_get_params", app.unescapedURLQuery(newGetParams))
 
 		// Adjust POST params
-		// Partially inspired by https://github.com/bitsbeats/prometheus-acls/blob/master/internal/labeler/middleware.go
 		if r.Method == http.MethodPost {
 			newPostParams, err := app.prepareQueryParams(&r.PostForm, acl)
 			if err != nil {

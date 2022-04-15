@@ -6,96 +6,98 @@ import (
 	"testing"
 
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestProhibitedMethodsMiddleware(t *testing.T) {
-	logger := zerolog.New(nil)
-	app := &application{
-		logger: &logger,
-	}
-
-	tests := []struct {
-		name   string
-		method string
-		want   int
-	}{
-		{
-			name:   "GET",
-			method: http.MethodGet,
-			want:   http.StatusOK,
-		},
-		{
-			name:   "POST",
-			method: http.MethodGet,
-			want:   http.StatusOK,
-		},
-		{
-			name:   "PATCH",
-			method: http.MethodPatch,
-			want:   http.StatusMethodNotAllowed,
-		}}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rr := httptest.NewRecorder()
-			r, err := http.NewRequest(tt.method, "/", nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_, _ = w.Write([]byte("OK"))
-			})
-			app.prohibitedMethodsMiddleware(next).ServeHTTP(rr, r)
-			rs := rr.Result()
-
-			if rs.StatusCode != tt.want {
-				t.Errorf("want %d; got %d", tt.want, rs.StatusCode)
-			}
-			defer rs.Body.Close()
-		})
-	}
-}
-
-func TestProhibitedPathsMiddleware(t *testing.T) {
+func TestSafeModeMiddleware(t *testing.T) {
 	tests := []struct {
 		name     string
 		path     string
+		method   string
 		safeMode bool
 		want     int
 	}{
 		{
-			name:     "safe mode on tsdb",
+			name:     "tsdb (safe mode on)",
 			path:     "/admin/tsdb",
+			method:   http.MethodGet,
 			safeMode: true,
 			want:     http.StatusForbidden,
 		},
 		{
-			name:     "safe mode off tsdb",
+			name:     "tsdb (safe mode off)",
 			path:     "/admin/tsdb",
+			method:   http.MethodGet,
 			safeMode: false,
 			want:     http.StatusOK,
 		},
 		{
-			name:     "safe mode on api write",
+			name:     "api write (safe mode on)",
 			path:     "/api/v1/write",
+			method:   http.MethodGet,
 			safeMode: true,
 			want:     http.StatusForbidden,
 		},
 		{
-			name:     "safe mode off api write",
+			name:     "api write (safe mode off)",
 			path:     "/api/v1/write",
+			method:   http.MethodGet,
 			safeMode: false,
 			want:     http.StatusOK,
 		},
 		{
-			name:     "safe mode on random path",
+			name:     "random path (safe mode on)",
 			path:     "/api/v1/test",
+			method:   http.MethodGet,
+			safeMode: true,
+			want:     http.StatusOK,
+		},
+		{
+			name:     "random path (safe mode off)",
+			path:     "/api/v1/test",
+			method:   http.MethodGet,
 			safeMode: false,
 			want:     http.StatusOK,
 		},
 		{
-			name:     "safe mode off random path",
-			path:     "/api/v1/test",
+			name:     "GET (safe mode on)",
+			path:     "/",
+			method:   http.MethodGet,
+			safeMode: true,
+			want:     http.StatusOK,
+		},
+		{
+			name:     "GET (safe mode off)",
+			path:     "/",
+			method:   http.MethodGet,
+			safeMode: false,
+			want:     http.StatusOK,
+		},
+		{
+			name:     "POST (safe mode on)",
+			path:     "/",
+			method:   http.MethodPost,
+			safeMode: true,
+			want:     http.StatusOK,
+		},
+		{
+			name:     "POST (safe mode off)",
+			path:     "/",
+			method:   http.MethodPost,
+			safeMode: false,
+			want:     http.StatusOK,
+		},
+		{
+			name:     "PATCH (safe mode on)",
+			path:     "/",
+			method:   http.MethodPatch,
+			safeMode: true,
+			want:     http.StatusMethodNotAllowed,
+		},
+		{
+			name:     "PATCH (safe mode off)",
+			path:     "/",
+			method:   http.MethodPatch,
 			safeMode: false,
 			want:     http.StatusOK,
 		},
@@ -110,19 +112,19 @@ func TestProhibitedPathsMiddleware(t *testing.T) {
 			}
 
 			rr := httptest.NewRecorder()
-			r, err := http.NewRequest(http.MethodGet, tt.path, nil)
+			r, err := http.NewRequest(tt.method, tt.path, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte("OK"))
 			})
-			app.prohibitedPathsMiddleware(next).ServeHTTP(rr, r)
+			app.safeModeMiddleware(next).ServeHTTP(rr, r)
 			rs := rr.Result()
+			got := rs.StatusCode
 
-			if rs.StatusCode != tt.want {
-				t.Errorf("want %d; got %d", tt.want, rs.StatusCode)
-			}
+			assert.Equal(t, tt.want, got)
+
 			defer rs.Body.Close()
 		})
 	}
