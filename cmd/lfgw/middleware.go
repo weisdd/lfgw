@@ -68,17 +68,10 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// safeModeMiddleware forbids access to some HTTP methods and APIs if safe mode is enabled
+// safeModeMiddleware forbids access to some API endpoints if safe mode is enabled
 func (app *application) safeModeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if app.SafeMode {
-			// TODO: allow OPTIONS?
-			if r.Method != http.MethodGet && r.Method != http.MethodPost {
-				w.Header().Set("Allow", fmt.Sprintf("%s, %s", http.MethodGet, http.MethodPost))
-				app.clientError(w, http.StatusMethodNotAllowed)
-				return
-			}
-
 			// TODO: more unsafe paths?
 			if app.isUnsafePath(r.URL.Path) {
 				hlog.FromRequest(r).Error().Caller().
@@ -204,20 +197,19 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		r.URL.RawQuery = newGetParams
 		app.enrichDebugLogContext(r, "new_get_params", app.unescapedURLQuery(newGetParams))
 
-		// Adjust POST params
-		if r.Method == http.MethodPost {
-			newPostParams, err := app.prepareQueryParams(&r.PostForm, acl)
-			if err != nil {
-				hlog.FromRequest(r).Error().Caller().
-					Err(err).Msg("")
-				app.clientError(w, http.StatusBadRequest)
-				return
-			}
-			newBody := strings.NewReader(newPostParams)
-			r.ContentLength = newBody.Size()
-			r.Body = io.NopCloser(newBody)
-			app.enrichDebugLogContext(r, "new_post_params", app.unescapedURLQuery(newPostParams))
+		// For PATCH, POST, and PUT requests
+		newPostParams, err := app.prepareQueryParams(&r.PostForm, acl)
+		if err != nil {
+			hlog.FromRequest(r).Error().Caller().
+				Err(err).Msg("")
+			app.clientError(w, http.StatusBadRequest)
+			return
 		}
+		newBody := strings.NewReader(newPostParams)
+		r.ContentLength = newBody.Size()
+		r.Body = io.NopCloser(newBody)
+		// TODO: the field name is slightly misleading, should, probably, be renamed
+		app.enrichDebugLogContext(r, "new_post_params", app.unescapedURLQuery(newPostParams))
 
 		next.ServeHTTP(w, r)
 	})

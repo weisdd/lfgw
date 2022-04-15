@@ -59,48 +59,6 @@ func TestSafeModeMiddleware(t *testing.T) {
 			safeMode: false,
 			want:     http.StatusOK,
 		},
-		{
-			name:     "GET (safe mode on)",
-			path:     "/",
-			method:   http.MethodGet,
-			safeMode: true,
-			want:     http.StatusOK,
-		},
-		{
-			name:     "GET (safe mode off)",
-			path:     "/",
-			method:   http.MethodGet,
-			safeMode: false,
-			want:     http.StatusOK,
-		},
-		{
-			name:     "POST (safe mode on)",
-			path:     "/",
-			method:   http.MethodPost,
-			safeMode: true,
-			want:     http.StatusOK,
-		},
-		{
-			name:     "POST (safe mode off)",
-			path:     "/",
-			method:   http.MethodPost,
-			safeMode: false,
-			want:     http.StatusOK,
-		},
-		{
-			name:     "PATCH (safe mode on)",
-			path:     "/",
-			method:   http.MethodPatch,
-			safeMode: true,
-			want:     http.StatusMethodNotAllowed,
-		},
-		{
-			name:     "PATCH (safe mode off)",
-			path:     "/",
-			method:   http.MethodPatch,
-			safeMode: false,
-			want:     http.StatusOK,
-		},
 	}
 
 	for _, tt := range tests {

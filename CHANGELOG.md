@@ -3,7 +3,8 @@
 ## 0.11.2
 
 - Key changes:
-  - Non-GET / -POST requests are now blocked only when safe mode is enabled.
+  - All HTTP methods are allowed now (previously, only POST/GET requests were supported due to technical reasons);
+  - `VictoriaMetrics/metricsql` bumped from 0.40.0 to 0.41.0.
 
 ## 0.11.1
 
