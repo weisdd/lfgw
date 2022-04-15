@@ -41,7 +41,7 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 				return
 			}
 
-			// Once r.ParseForm() is called, we need to update ContentLength, otherwise the request will fail
+			// Once r.ParseForm() is called, we need to update ContentLength, otherwise the request will fail. r.PostForm contains data for PATCH, POST, and PUT requests.
 			postForm := r.PostForm.Encode()
 			newBody := strings.NewReader(postForm)
 			r.ContentLength = newBody.Size()
