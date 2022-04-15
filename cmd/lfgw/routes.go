@@ -11,11 +11,10 @@ func (app *application) routes() *mux.Router {
 	r.Use(app.nonProxiedEndpointsMiddleware)
 	r.Use(hlog.NewHandler(*app.logger))
 	r.Use(app.logMiddleware)
-	r.Use(app.prohibitedMethodsMiddleware)
-	r.Use(app.proxyHeadersMiddleware)
 	r.Use(app.oidcModeMiddleware)
-	// Better to keep it here to see user email in logs
-	r.Use(app.prohibitedPathsMiddleware)
+	// Better to keep it here to see user email in logs (for unsafe paths)
+	r.Use(app.safeModeMiddleware)
+	r.Use(app.proxyHeadersMiddleware)
 	r.Use(app.rewriteRequestMiddleware)
 	r.PathPrefix("/").Handler(app.proxy)
 	return r

@@ -41,7 +41,7 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 				return
 			}
 
-			// Once r.ParseForm() is called, we need to update ContentLength, otherwise the request will fail
+			// Once r.ParseForm() is called, we need to update ContentLength, otherwise the request will fail. r.PostForm contains data for PATCH, POST, and PUT requests.
 			postForm := r.PostForm.Encode()
 			newBody := strings.NewReader(postForm)
 			r.ContentLength = newBody.Size()
@@ -68,20 +68,8 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// prohibitedMethods forbids all the methods aside from "GET" and "POST".
-func (app *application) prohibitedMethodsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodPost {
-			w.Header().Set("Allow", fmt.Sprintf("%s, %s", http.MethodGet, http.MethodPost))
-			app.clientError(w, http.StatusMethodNotAllowed)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-// prohibitedPaths forbids access to some destinations that should not be proxied.
-func (app *application) prohibitedPathsMiddleware(next http.Handler) http.Handler {
+// safeModeMiddleware forbids access to some API endpoints if safe mode is enabled
+func (app *application) safeModeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if app.SafeMode && app.isUnsafePath(r.URL.Path) {
 			hlog.FromRequest(r).Error().Caller().
@@ -89,6 +77,7 @@ func (app *application) prohibitedPathsMiddleware(next http.Handler) http.Handle
 			app.clientError(w, http.StatusForbidden)
 			return
 		}
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -101,6 +90,7 @@ func (app *application) proxyHeadersMiddleware(next http.Handler) http.Handler {
 			r.Header.Set("X-Forwarded-Proto", r.URL.Scheme)
 			r.Header.Set("X-Forwarded-Host", r.Header.Get("Host"))
 		}
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -205,21 +195,19 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		r.URL.RawQuery = newGetParams
 		app.enrichDebugLogContext(r, "new_get_params", app.unescapedURLQuery(newGetParams))
 
-		// Adjust POST params
-		// Partially inspired by https://github.com/bitsbeats/prometheus-acls/blob/master/internal/labeler/middleware.go
-		if r.Method == http.MethodPost {
-			newPostParams, err := app.prepareQueryParams(&r.PostForm, acl)
-			if err != nil {
-				hlog.FromRequest(r).Error().Caller().
-					Err(err).Msg("")
-				app.clientError(w, http.StatusBadRequest)
-				return
-			}
-			newBody := strings.NewReader(newPostParams)
-			r.ContentLength = newBody.Size()
-			r.Body = io.NopCloser(newBody)
-			app.enrichDebugLogContext(r, "new_post_params", app.unescapedURLQuery(newPostParams))
+		// For PATCH, POST, and PUT requests
+		newPostParams, err := app.prepareQueryParams(&r.PostForm, acl)
+		if err != nil {
+			hlog.FromRequest(r).Error().Caller().
+				Err(err).Msg("")
+			app.clientError(w, http.StatusBadRequest)
+			return
 		}
+		newBody := strings.NewReader(newPostParams)
+		r.ContentLength = newBody.Size()
+		r.Body = io.NopCloser(newBody)
+		// TODO: the field name is slightly misleading, should, probably, be renamed
+		app.enrichDebugLogContext(r, "new_post_params", app.unescapedURLQuery(newPostParams))
 
 		next.ServeHTTP(w, r)
 	})

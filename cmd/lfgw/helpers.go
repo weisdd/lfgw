@@ -92,6 +92,7 @@ func (app *application) isNotAPIRequest(path string) bool {
 // isUnsafePath returns true if the requested path targets a potentially dangerous endpoint (admin or remote write).
 func (app *application) isUnsafePath(path string) bool {
 	// TODO: move to regexp?
+	// TODO: more unsafe paths?
 	return strings.Contains(path, "/admin/tsdb") || strings.Contains(path, "/api/v1/write")
 }
 

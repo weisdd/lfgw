@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.11.2
+
+- Key changes:
+  - All HTTP methods are allowed now (previously, only POST/GET requests were supported due to technical reasons);
+  - `VictoriaMetrics/metricsql` bumped from `0.40.0` to `0.41.0`.
+
 ## 0.11.1
 
 - Key changes:
