@@ -71,14 +71,11 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 // safeModeMiddleware forbids access to some API endpoints if safe mode is enabled
 func (app *application) safeModeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if app.SafeMode {
-			// TODO: more unsafe paths?
-			if app.isUnsafePath(r.URL.Path) {
-				hlog.FromRequest(r).Error().Caller().
-					Msgf("Blocked a request to %s", r.URL.Path)
-				app.clientError(w, http.StatusForbidden)
-				return
-			}
+		if app.SafeMode && app.isUnsafePath(r.URL.Path) {
+			hlog.FromRequest(r).Error().Caller().
+				Msgf("Blocked a request to %s", r.URL.Path)
+			app.clientError(w, http.StatusForbidden)
+			return
 		}
 
 		next.ServeHTTP(w, r)
@@ -93,6 +90,7 @@ func (app *application) proxyHeadersMiddleware(next http.Handler) http.Handler {
 			r.Header.Set("X-Forwarded-Proto", r.URL.Scheme)
 			r.Header.Set("X-Forwarded-Host", r.Header.Get("Host"))
 		}
+
 		next.ServeHTTP(w, r)
 	})
 }
