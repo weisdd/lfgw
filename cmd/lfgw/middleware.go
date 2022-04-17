@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/rs/zerolog/hlog"
+	"github.com/weisdd/lfgw/internal/acl"
 )
 
 // nonProxiedEndpointsMiddleware is a workaround to support healthz and metrics endpoints while forwarding everything else to an upstream.
@@ -133,7 +134,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		// NOTE: The field will contain all roles present in the token, not only those that are considered during ACL generation process
 		app.enrichDebugLogContext(r, "roles", strings.Join(claims.Roles, ", "))
 
-		acl, err := app.ACLMap.getACL(claims.Roles, app.AssumedRolesEnabled)
+		acl, err := app.ACLMap.GetUserACL(claims.Roles, app.AssumedRolesEnabled)
 		if err != nil {
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msg("")
@@ -163,7 +164,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			return
 		}
 
-		acl, ok := r.Context().Value(contextKeyACL).(ACL)
+		acl, ok := r.Context().Value(contextKeyACL).(acl.ACL)
 		if !ok {
 			// Should never happen. It means OIDC middleware hasn't done it's job
 			app.serverError(w, r, fmt.Errorf("ACL is not set in the context"))

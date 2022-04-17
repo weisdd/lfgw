@@ -6,12 +6,13 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+	"github.com/weisdd/lfgw/internal/acl"
 )
 
 func TestApplication_modifyMetricExpr(t *testing.T) {
 	logger := zerolog.New(nil)
 
-	newACLPlain := ACL{
+	newACLPlain := acl.ACL{
 		Fullaccess: false,
 		LabelFilter: metricsql.LabelFilter{
 			Label:      "namespace",
@@ -22,7 +23,7 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 		RawACL: "default",
 	}
 
-	newACLPositiveRegexp := ACL{
+	newACLPositiveRegexp := acl.ACL{
 		Fullaccess: false,
 		LabelFilter: metricsql.LabelFilter{
 			Label:      "namespace",
@@ -34,7 +35,7 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 	}
 
 	// Technically, it's not really possible to create such ACL, but better to keep an eye on it anyway
-	newACLNegativeRegexp := ACL{
+	newACLNegativeRegexp := acl.ACL{
 		Fullaccess: false,
 		LabelFilter: metricsql.LabelFilter{
 			Label:      "namespace",
@@ -49,7 +50,7 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 		name                string
 		query               string
 		EnableDeduplication bool
-		acl                 ACL
+		acl                 acl.ACL
 		want                string
 	}{
 		{
@@ -264,7 +265,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -290,7 +291,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -316,7 +317,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 	}
 
 	t.Run("Not a regexp", func(t *testing.T) {
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label: "namespace",
@@ -331,7 +332,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 	})
 
 	t.Run("Negative non-matching complex regexp", func(t *testing.T) {
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -348,7 +349,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 	})
 
 	t.Run("Negative non-matching simple regexp", func(t *testing.T) {
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -365,7 +366,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 	})
 
 	t.Run("Negative matching complex regexp", func(t *testing.T) {
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -382,7 +383,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 	})
 
 	t.Run("Positive non-matching complex regexp", func(t *testing.T) {
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -399,7 +400,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 	})
 
 	t.Run("Positive non-matching simple regexp", func(t *testing.T) {
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -431,7 +432,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -463,7 +464,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -495,7 +496,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -514,7 +515,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 	// Matching cases
 
 	t.Run("Original filter is not a regexp, new filter matches", func(t *testing.T) {
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -540,7 +541,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -566,7 +567,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -598,7 +599,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -630,7 +631,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -662,7 +663,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -688,7 +689,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: false,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",
@@ -705,7 +706,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 	})
 
 	t.Run("The new filter gives full access", func(t *testing.T) {
-		acl := ACL{
+		acl := acl.ACL{
 			Fullaccess: true,
 			LabelFilter: metricsql.LabelFilter{
 				Label:      "namespace",

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/metricsql"
+	"github.com/weisdd/lfgw/internal/acl"
 )
 
 // replaceLFByName drops all label filters with the matching name and then appends the supplied filter.
@@ -36,7 +37,7 @@ func (app *application) isFakePositiveRegexp(filter metricsql.LabelFilter) bool 
 
 // TODO: simplify description
 // shouldNotBeModified helps to understand whether the original label filters have to be modified. The function returns false if any of the original filters do not match expectations described further. It returns true if [the list of original filters contains either a fake positive regexp (no special symbols, e.g. namespace=~"kube-system") or a non-regexp filter] and [acl.LabelFilter is a matching positive regexp]. Also, if original filter is a subfilter of the new filter or has the same value; if acl gives full access. Target label is taken from the acl.LabelFilter.
-func (app *application) shouldNotBeModified(filters []metricsql.LabelFilter, acl ACL) bool {
+func (app *application) shouldNotBeModified(filters []metricsql.LabelFilter, acl acl.ACL) bool {
 	if acl.Fullaccess {
 		return true
 	}
@@ -109,7 +110,7 @@ func (app *application) appendOrMergeRegexpLF(filters []metricsql.LabelFilter, n
 }
 
 // modifyMetricExpr walks through the query and modifies only metricsql.Expr based on the supplied acl with label filter.
-func (app *application) modifyMetricExpr(expr metricsql.Expr, acl ACL) metricsql.Expr {
+func (app *application) modifyMetricExpr(expr metricsql.Expr, acl acl.ACL) metricsql.Expr {
 	newExpr := metricsql.Clone(expr)
 
 	// We cannot pass any extra parameters, so we need to use a closure
@@ -133,7 +134,7 @@ func (app *application) modifyMetricExpr(expr metricsql.Expr, acl ACL) metricsql
 }
 
 // prepareQueryParams rewrites GET/POST "query" and "match" parameters to filter out metrics.
-func (app *application) prepareQueryParams(params *url.Values, acl ACL) (string, error) {
+func (app *application) prepareQueryParams(params *url.Values, acl acl.ACL) (string, error) {
 	newParams := &url.Values{}
 
 	for k, vv := range *params {
