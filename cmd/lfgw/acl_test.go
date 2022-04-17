@@ -218,7 +218,7 @@ func TestACL_LoadACL(t *testing.T) {
 			name:    "admin",
 			content: "admin: .*",
 			want: ACLMap{
-				"admin": &ACL{
+				"admin": ACL{
 					Fullaccess: true,
 					LabelFilter: metricsql.LabelFilter{
 						Label:      "namespace",
@@ -234,7 +234,7 @@ func TestACL_LoadACL(t *testing.T) {
 			name:    "implicit-admin",
 			content: `implicit-admin: ku.*, .*, min.*`,
 			want: ACLMap{
-				"implicit-admin": &ACL{
+				"implicit-admin": ACL{
 					Fullaccess: true,
 					LabelFilter: metricsql.LabelFilter{
 						Label:      "namespace",
@@ -250,7 +250,7 @@ func TestACL_LoadACL(t *testing.T) {
 			name:    "multiple-values",
 			content: "multiple-values: ku.*, min.*",
 			want: ACLMap{
-				"multiple-values": &ACL{
+				"multiple-values": ACL{
 					Fullaccess: false,
 					LabelFilter: metricsql.LabelFilter{
 						Label:      "namespace",
@@ -266,7 +266,7 @@ func TestACL_LoadACL(t *testing.T) {
 			name:    "single-value",
 			content: "single-value: default",
 			want: ACLMap{
-				"single-value": &ACL{
+				"single-value": ACL{
 					Fullaccess: false,
 					LabelFilter: metricsql.LabelFilter{
 						Label:      "namespace",
@@ -333,51 +333,43 @@ func saveACLToFile(t testing.TB, f *os.File, content string) {
 	}
 }
 
-func TestApplication_rolesToRawACL(t *testing.T) {
-	app := &application{
-		ACLMap: ACLMap{
-			"admin": &ACL{
-				Fullaccess: true,
-				LabelFilter: metricsql.LabelFilter{
-					Label:      "namespace",
-					Value:      ".*",
-					IsRegexp:   true,
-					IsNegative: false,
-				},
-				RawACL: ".*",
+func TestACL_rolesToRawACL(t *testing.T) {
+	a := ACLMap{
+		"admin": ACL{
+			Fullaccess: true,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      ".*",
+				IsRegexp:   true,
+				IsNegative: false,
 			},
-			"multiple-values": &ACL{
-				Fullaccess: false,
-				LabelFilter: metricsql.LabelFilter{
-					Label:      "namespace",
-					Value:      "ku.*|min.*",
-					IsRegexp:   true,
-					IsNegative: false,
-				},
-				RawACL: "ku.*, min.*",
+			RawACL: ".*",
+		},
+		"multiple-values": ACL{
+			Fullaccess: false,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "ku.*|min.*",
+				IsRegexp:   true,
+				IsNegative: false,
 			},
-			"single-value": &ACL{
-				Fullaccess: false,
-				LabelFilter: metricsql.LabelFilter{
-					Label:      "namespace",
-					Value:      "default",
-					IsRegexp:   false,
-					IsNegative: false,
-				},
-				RawACL: "default",
+			RawACL: "ku.*, min.*",
+		},
+		"single-value": ACL{
+			Fullaccess: false,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "default",
+				IsRegexp:   false,
+				IsNegative: false,
 			},
+			RawACL: "default",
 		},
 	}
 
 	t.Run("0 roles", func(t *testing.T) {
 		roles := []string{}
-		_, err := app.rolesToRawACL(roles)
-		assert.NotNil(t, err)
-	})
-
-	t.Run("0 known roles", func(t *testing.T) {
-		roles := []string{"unknown-role"}
-		_, err := app.rolesToRawACL(roles)
+		_, err := a.rolesToRawACL(roles)
 		assert.NotNil(t, err)
 	})
 
@@ -385,7 +377,7 @@ func TestApplication_rolesToRawACL(t *testing.T) {
 		roles := []string{"multiple-values"}
 		want := "ku.*, min.*"
 
-		got, err := app.rolesToRawACL(roles)
+		got, err := a.rolesToRawACL(roles)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	})
@@ -394,106 +386,83 @@ func TestApplication_rolesToRawACL(t *testing.T) {
 		roles := []string{"multiple-values", "single-value"}
 		want := "ku.*, min.*, default"
 
-		got, err := app.rolesToRawACL(roles)
+		got, err := a.rolesToRawACL(roles)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	})
 
 	t.Run("Empty rawACL", func(t *testing.T) {
-		app := &application{
-			ACLMap: ACLMap{
-				"empty-acl": &ACL{},
-			},
+		a := ACLMap{
+			"empty-acl": ACL{},
 		}
+
 		roles := []string{"empty-acl"}
 
-		_, err := app.rolesToRawACL(roles)
+		_, err := a.rolesToRawACL(roles)
 		assert.NotNil(t, err)
 	})
-
-	// Assumed roles enabled
-	app.AssumedRoles = true
-
-	t.Run("0 known roles, 1 is unknown (assumed roles enabled)", func(t *testing.T) {
-		roles := []string{"unknown-role"}
-		want := "unknown-role"
-
-		got, err := app.rolesToRawACL(roles)
-		assert.Nil(t, err)
-		assert.Equal(t, want, got)
-	})
-
-	t.Run("multiple roles, 1 is unknown (assumed roles enabled)", func(t *testing.T) {
-		roles := []string{"multiple-values", "single-value", "unknown-role"}
-		want := "ku.*, min.*, default, unknown-role"
-
-		got, err := app.rolesToRawACL(roles)
-		assert.Nil(t, err)
-		assert.Equal(t, want, got)
-	})
-
 }
 
-func TestApplication_GetACL(t *testing.T) {
-	app := &application{
-		ACLMap: ACLMap{
-			"admin": &ACL{
-				Fullaccess: true,
-				LabelFilter: metricsql.LabelFilter{
-					Label:      "namespace",
-					Value:      ".*",
-					IsRegexp:   true,
-					IsNegative: false,
-				},
-				RawACL: ".*",
+func TestACL_GetACL(t *testing.T) {
+
+	a := ACLMap{
+		"admin": ACL{
+			Fullaccess: true,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      ".*",
+				IsRegexp:   true,
+				IsNegative: false,
 			},
-			"multiple-values": &ACL{
-				Fullaccess: false,
-				LabelFilter: metricsql.LabelFilter{
-					Label:      "namespace",
-					Value:      "ku.*|min.*",
-					IsRegexp:   true,
-					IsNegative: false,
-				},
-				RawACL: "ku.*, min.*",
+			RawACL: ".*",
+		},
+		"multiple-values": ACL{
+			Fullaccess: false,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "ku.*|min.*",
+				IsRegexp:   true,
+				IsNegative: false,
 			},
-			"single-value": &ACL{
-				Fullaccess: false,
-				LabelFilter: metricsql.LabelFilter{
-					Label:      "namespace",
-					Value:      "default",
-					IsRegexp:   false,
-					IsNegative: false,
-				},
-				RawACL: "default",
+			RawACL: "ku.*, min.*",
+		},
+		"single-value": ACL{
+			Fullaccess: false,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "default",
+				IsRegexp:   false,
+				IsNegative: false,
 			},
+			RawACL: "default",
 		},
 	}
 
+	// Assumed roles disabled
 	t.Run("0 roles", func(t *testing.T) {
 		roles := []string{}
-		_, err := app.getACL(roles)
+		_, err := a.getACL(roles, false)
 		assert.NotNil(t, err)
 	})
 
 	t.Run("0 known roles", func(t *testing.T) {
 		roles := []string{"unknown-role"}
-		_, err := app.getACL(roles)
+		_, err := a.getACL(roles, false)
 		assert.NotNil(t, err)
 	})
 
 	t.Run("1 role", func(t *testing.T) {
 		roles := []string{"single-value"}
-		want := *app.ACLMap["single-value"]
-		got, err := app.getACL(roles)
+		want := a["single-value"]
+		got, err := a.getACL(roles, false)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	})
 
 	t.Run("multiple roles, full access", func(t *testing.T) {
 		roles := []string{"admin", "multiple-values"}
-		want := *app.ACLMap["admin"]
-		got, err := app.getACL(roles)
+		want := a["admin"]
+		got, err := a.getACL(roles, false)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	})
@@ -502,7 +471,7 @@ func TestApplication_GetACL(t *testing.T) {
 		roles := []string{"single-value", "multiple-values", "unknown-role"}
 		knownRoles := []string{"single-value", "multiple-values"}
 
-		rawACL, err := app.rolesToRawACL(knownRoles)
+		rawACL, err := a.rolesToRawACL(knownRoles)
 		assert.Nil(t, err)
 
 		want := ACL{
@@ -516,14 +485,12 @@ func TestApplication_GetACL(t *testing.T) {
 			RawACL: rawACL,
 		}
 
-		got, err := app.getACL(roles)
+		got, err := a.getACL(roles, false)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	})
 
 	// Assumed roles enabled
-	app.AssumedRoles = true
-
 	t.Run("0 known roles, 1 is unknown (assumed roles enabled)", func(t *testing.T) {
 		roles := []string{"unknown-role"}
 
@@ -538,7 +505,7 @@ func TestApplication_GetACL(t *testing.T) {
 			RawACL: "unknown-role",
 		}
 
-		got, err := app.getACL(roles)
+		got, err := a.getACL(roles, true)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	})
@@ -557,7 +524,7 @@ func TestApplication_GetACL(t *testing.T) {
 			RawACL: "ku.*, min.*, default, unknown-role",
 		}
 
-		got, err := app.getACL(roles)
+		got, err := a.getACL(roles, true)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	})
@@ -576,7 +543,7 @@ func TestApplication_GetACL(t *testing.T) {
 			RawACL: ".*",
 		}
 
-		got, err := app.getACL(roles)
+		got, err := a.getACL(roles, true)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	})

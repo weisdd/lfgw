@@ -35,7 +35,7 @@ type application struct {
 	SetProxyHeaders         bool          `env:"SET_PROXY_HEADERS" envDefault:"false"`
 	SetGomaxProcs           bool          `env:"SET_GOMAXPROCS" envDefault:"true"`
 	ACLPath                 string        `env:"ACL_PATH" envDefault:"./acl.yaml"`
-	AssumedRoles            bool          `env:"ASSUMED_ROLES" envDefault:"false"`
+	AssumedRolesEnabled     bool          `env:"ASSUMED_ROLES" envDefault:"false"`
 	OIDCRealmURL            string        `env:"OIDC_REALM_URL,required"`
 	OIDCClientID            string        `env:"OIDC_CLIENT_ID,required"`
 	Port                    int           `env:"PORT" envDefault:"8080"`
@@ -89,7 +89,7 @@ func main() {
 	app.logger.Info().Caller().
 		Msgf("Runtime settings: GOMAXPROCS = %d", runtime.GOMAXPROCS(0))
 
-	if app.AssumedRoles {
+	if app.AssumedRolesEnabled {
 		app.logger.Info().Caller().
 			Msg("Assumed roles mode is on")
 	} else {
@@ -109,7 +109,7 @@ func main() {
 				Msgf("Loaded role definition for %s: %q (converted to %s)", role, acl.RawACL, acl.LabelFilter.AppendString(nil))
 		}
 	} else {
-		if !app.AssumedRoles {
+		if !app.AssumedRolesEnabled {
 			app.logger.Fatal().Caller().
 				Msgf("The app cannot run without at least one source of configuration (Non-empty ACL_PATH and/or ASSUMED_ROLES set to true)")
 		}
