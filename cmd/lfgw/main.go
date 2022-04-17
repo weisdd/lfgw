@@ -98,7 +98,7 @@ func main() {
 	}
 
 	if app.ACLPath != "" {
-		app.ACLMap, err = app.loadACL()
+		app.ACLMap, err = app.loadACL(app.ACLPath)
 		if err != nil {
 			app.logger.Fatal().Caller().
 				Err(err).Msgf("Failed to load ACL")

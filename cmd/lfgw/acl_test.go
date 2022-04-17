@@ -286,14 +286,12 @@ func TestACL_LoadACL(t *testing.T) {
 	}
 	defer os.Remove(f.Name())
 
-	app := &application{
-		ACLPath: f.Name(),
-	}
+	app := &application{}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			saveACLToFile(t, f, tt.content)
-			got, err := app.loadACL()
+			got, err := app.loadACL(f.Name())
 			assert.Nil(t, err)
 			assert.Equal(t, tt.want, got)
 		})
@@ -301,11 +299,11 @@ func TestACL_LoadACL(t *testing.T) {
 
 	t.Run("incorrect ACL", func(t *testing.T) {
 		saveACLToFile(t, f, "test-role:")
-		_, err := app.loadACL()
+		_, err := app.loadACL(f.Name())
 		assert.NotNil(t, err)
 
 		saveACLToFile(t, f, "test-role: a b")
-		_, err = app.loadACL()
+		_, err = app.loadACL(f.Name())
 		assert.NotNil(t, err)
 	})
 

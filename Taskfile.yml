@@ -2,9 +2,9 @@ version: '3'
 
 tasks:
   default:
-    - task: test
-    - task: lint
     - task: tidy
+    - task: lint
+    - task: test
 
   test:
     cmds:

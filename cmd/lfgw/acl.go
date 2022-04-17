@@ -120,10 +120,10 @@ func (a *ACL) getFullaccessACL() ACL {
 }
 
 // loadACL loads ACL from a file
-func (app *application) loadACL() (ACLMap, error) {
+func (app *application) loadACL(path string) (ACLMap, error) {
 	aclMap := make(ACLMap)
 
-	yamlFile, err := os.ReadFile(app.ACLPath)
+	yamlFile, err := os.ReadFile(path)
 	if err != nil {
 		return aclMap, err
 	}
