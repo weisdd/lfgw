@@ -14,6 +14,82 @@ import (
 // ACLMap stores a parsed YAML with role defitions
 type ACLMap map[string]ACL
 
+// rolesToRawACL returns a comma-separated list of ACL definitions for all specified roles. Basically, it lets you dynamically generate a raw ACL as if it was supplied through acl.yaml. To support Assumed Roles, unknown roles are treated as ACL definitions.
+func (a ACLMap) rolesToRawACL(roles []string) (string, error) {
+	rawACLs := make([]string, 0, len(roles))
+
+	for _, role := range roles {
+		acl, exists := a[role]
+		if exists {
+			// NOTE: You should never see an empty definitions in .RawACL as those should be removed by toSlice further down the process. The error check below is not necessary, is left as an additional safeguard for now and might get removed in the future.
+			if acl.RawACL == "" {
+				return "", fmt.Errorf("%s role contains empty rawACL", role)
+			}
+			rawACLs = append(rawACLs, acl.RawACL)
+		} else {
+			// NOTE: Role names are not linted, so they may contain regular expressions, including the admin definition: .*
+			rawACLs = append(rawACLs, role)
+		}
+	}
+
+	rawACL := strings.Join(rawACLs, ", ")
+	if rawACL == "" {
+		return "", fmt.Errorf("constructed empty rawACL")
+	}
+
+	return rawACL, nil
+}
+
+// getACL takes a list of roles found in an OIDC claim and constructs and ACL based on them. If assumed roles are disabled, then only known roles (present in app.ACLMap) are considered.
+func (a ACLMap) getACL(oidcRoles []string, assumedRolesEnabled bool) (ACL, error) {
+	roles := []string{}
+	assumedRoles := []string{}
+
+	for _, role := range oidcRoles {
+		_, exists := a[role]
+		if exists {
+			if a[role].Fullaccess {
+				return a[role], nil
+			}
+			roles = append(roles, role)
+		} else {
+			assumedRoles = append(assumedRoles, role)
+		}
+	}
+
+	if assumedRolesEnabled {
+		roles = append(roles, assumedRoles...)
+	}
+
+	if len(roles) == 0 {
+		return ACL{}, fmt.Errorf("no matching roles found")
+	}
+
+	// We can return a prebuilt ACL if there's only one role and it's known
+	if len(roles) == 1 {
+		role := roles[0]
+		acl, exists := a[role]
+		if exists {
+			return acl, nil
+		}
+	}
+
+	// To simplify creation of composite ACLs, we need to form a raw ACL, so the further process would be equal to what we have for processing acl.yaml
+	rawACL, err := a.rolesToRawACL(roles)
+	if err != nil {
+		return ACL{}, err
+	}
+
+	acl := ACL{}
+
+	acl, err = acl.PrepareACL(rawACL)
+	if err != nil {
+		return ACL{}, err
+	}
+
+	return acl, nil
+}
+
 // ACL stores a role definition
 type ACL struct {
 	Fullaccess  bool
@@ -105,6 +181,7 @@ func (a *ACL) PrepareACL(rawACL string) (ACL, error) {
 	return acl, nil
 }
 
+// TODO: use a const?
 // getFullaccessACL returns a fullaccess ACL
 func (a *ACL) getFullaccessACL() ACL {
 	return ACL{
@@ -146,80 +223,4 @@ func (app *application) loadACL(path string) (ACLMap, error) {
 	}
 
 	return aclMap, nil
-}
-
-// rolesToRawACL returns a comma-separated list of ACL definitions for all specified roles. Basically, it lets you dynamically generate a raw ACL as if it was supplied through acl.yaml. To support Assumed Roles, unknown roles are treated as ACL definitions.
-func (a ACLMap) rolesToRawACL(roles []string) (string, error) {
-	rawACLs := make([]string, 0, len(roles))
-
-	for _, role := range roles {
-		acl, exists := a[role]
-		if exists {
-			// NOTE: You should never see an empty definitions in .RawACL as those should be removed by toSlice further down the process. The error check below is not necessary, is left as an additional safeguard for now and might get removed in the future.
-			if acl.RawACL == "" {
-				return "", fmt.Errorf("%s role contains empty rawACL", role)
-			}
-			rawACLs = append(rawACLs, acl.RawACL)
-		} else {
-			// NOTE: Role names are not linted, so they may contain regular expressions, including the admin definition: .*
-			rawACLs = append(rawACLs, role)
-		}
-	}
-
-	rawACL := strings.Join(rawACLs, ", ")
-	if rawACL == "" {
-		return "", fmt.Errorf("constructed empty rawACL")
-	}
-
-	return rawACL, nil
-}
-
-// getACL takes a list of roles found in an OIDC claim and constructs and ACL based on them. If assumed roles are disabled, then only known roles (present in app.ACLMap) are considered.
-func (a ACLMap) getACL(oidcRoles []string, assumedRolesEnabled bool) (ACL, error) {
-	roles := []string{}
-	assumedRoles := []string{}
-
-	for _, role := range oidcRoles {
-		_, exists := a[role]
-		if exists {
-			if a[role].Fullaccess {
-				return a[role], nil
-			}
-			roles = append(roles, role)
-		} else {
-			assumedRoles = append(assumedRoles, role)
-		}
-	}
-
-	if assumedRolesEnabled {
-		roles = append(roles, assumedRoles...)
-	}
-
-	if len(roles) == 0 {
-		return ACL{}, fmt.Errorf("no matching roles found")
-	}
-
-	// We can return a prebuilt ACL if there's only one role and it's known
-	if len(roles) == 1 {
-		role := roles[0]
-		acl, exists := a[role]
-		if exists {
-			return acl, nil
-		}
-	}
-
-	// To simplify creation of composite ACLs, we need to form a raw ACL, so the further process would be equal to what we have for processing acl.yaml
-	rawACL, err := a.rolesToRawACL(roles)
-	if err != nil {
-		return ACL{}, err
-	}
-
-	acl := ACL{}
-
-	acl, err = acl.PrepareACL(rawACL)
-	if err != nil {
-		return ACL{}, err
-	}
-
-	return acl, nil
 }
