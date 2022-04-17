@@ -45,7 +45,6 @@ func (app *application) shouldNotBeModified(filters []metricsql.LabelFilter, acl
 	seenUnmodified := 0
 
 	// TODO: move to a map? Might not be worth doing as filters of the same type are unlikely
-	// TODO: move to NormalizedACL once it's introduced?
 	rawSubACLs := strings.Split(acl.RawACL, ", ")
 	newLF := acl.LabelFilter
 

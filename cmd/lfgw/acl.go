@@ -105,7 +105,6 @@ func (a *ACL) toSlice(str string) ([]string, error) {
 		// in case there are empty elements in between
 		s := strings.TrimSpace(s)
 
-		// TODO: optionally disable it when things are loaded from a file?
 		for _, ch := range s {
 			if unicode.IsSpace(ch) {
 				return nil, fmt.Errorf("line should not contain spaces within individual elements (%q)", str)
@@ -124,7 +123,6 @@ func (a *ACL) toSlice(str string) ([]string, error) {
 	return buffer, nil
 }
 
-// TODO: update description once NormalizedACL field is introduced
 // PrepareACL returns an ACL based on a rule definition (non-regexp for one namespace, regexp - for many). .RawACL in the resulting value will contain a normalized value (anchors stripped, implicit admin will have only .*).
 func (a *ACL) PrepareACL(rawACL string) (ACL, error) {
 	var lf = metricsql.LabelFilter{
@@ -174,14 +172,12 @@ func (a *ACL) PrepareACL(rawACL string) (ACL, error) {
 	acl := ACL{
 		Fullaccess:  false,
 		LabelFilter: lf,
-		// TODO: that should go to NormalizedACL
-		RawACL: strings.Join(buffer, ", "),
+		RawACL:      strings.Join(buffer, ", "),
 	}
 
 	return acl, nil
 }
 
-// TODO: use a const?
 // getFullaccessACL returns a fullaccess ACL
 func (a *ACL) getFullaccessACL() ACL {
 	return ACL{
