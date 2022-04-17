@@ -8,11 +8,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ACLMap stores a parsed YAML with role defitions
-type ACLMap map[string]ACL
+// ACLs stores a parsed YAML with role defitions
+type ACLs map[string]ACL
 
 // rolesToRawACL returns a comma-separated list of ACL definitions for all specified roles. Basically, it lets you dynamically generate a raw ACL as if it was supplied through acl.yaml. To support Assumed Roles, unknown roles are treated as ACL definitions.
-func (a ACLMap) rolesToRawACL(roles []string) (string, error) {
+func (a ACLs) rolesToRawACL(roles []string) (string, error) {
 	rawACLs := make([]string, 0, len(roles))
 
 	for _, role := range roles {
@@ -37,8 +37,8 @@ func (a ACLMap) rolesToRawACL(roles []string) (string, error) {
 	return rawACL, nil
 }
 
-// GetUserACL takes a list of roles found in an OIDC claim and constructs and ACL based on them. If assumed roles are disabled, then only known roles (present in app.ACLMap) are considered.
-func (a ACLMap) GetUserACL(oidcRoles []string, assumedRolesEnabled bool) (ACL, error) {
+// GetUserACL takes a list of roles found in an OIDC claim and constructs and ACL based on them. If assumed roles are disabled, then only known roles (present in app.ACLs) are considered.
+func (a ACLs) GetUserACL(oidcRoles []string, assumedRolesEnabled bool) (ACL, error) {
 	roles := []string{}
 	assumedRoles := []string{}
 
@@ -85,29 +85,29 @@ func (a ACLMap) GetUserACL(oidcRoles []string, assumedRolesEnabled bool) (ACL, e
 	return acl, nil
 }
 
-// NewACLMapFromFile loads ACL from a file
-func NewACLMapFromFile(path string) (ACLMap, error) {
-	aclMap := make(ACLMap)
+// NewACLsFromFile loads ACL from a file
+func NewACLsFromFile(path string) (ACLs, error) {
+	acls := make(ACLs)
 
 	yamlFile, err := os.ReadFile(path)
 	if err != nil {
-		return aclMap, err
+		return ACLs{}, err
 	}
 	var aclYaml map[string]string
 
 	err = yaml.Unmarshal(yamlFile, &aclYaml)
 	if err != nil {
-		return aclMap, err
+		return ACLs{}, err
 	}
 
 	for role, rawACL := range aclYaml {
 		acl, err := NewACL(rawACL)
 		if err != nil {
-			return ACLMap{}, err
+			return ACLs{}, err
 		}
 
-		aclMap[role] = acl
+		acls[role] = acl
 	}
 
-	return aclMap, nil
+	return acls, nil
 }

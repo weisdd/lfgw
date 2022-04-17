@@ -134,7 +134,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		// NOTE: The field will contain all roles present in the token, not only those that are considered during ACL generation process
 		app.enrichDebugLogContext(r, "roles", strings.Join(claims.Roles, ", "))
 
-		acl, err := app.ACLMap.GetUserACL(claims.Roles, app.AssumedRolesEnabled)
+		acl, err := app.ACLs.GetUserACL(claims.Roles, app.AssumedRolesEnabled)
 		if err != nil {
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msg("")

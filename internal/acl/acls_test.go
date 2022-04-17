@@ -9,7 +9,7 @@ import (
 )
 
 func TestACL_rolesToRawACL(t *testing.T) {
-	a := ACLMap{
+	a := ACLs{
 		"admin": ACL{
 			Fullaccess: true,
 			LabelFilter: metricsql.LabelFilter{
@@ -67,7 +67,7 @@ func TestACL_rolesToRawACL(t *testing.T) {
 	})
 
 	t.Run("Empty rawACL", func(t *testing.T) {
-		a := ACLMap{
+		a := ACLs{
 			"empty-acl": ACL{},
 		}
 
@@ -79,7 +79,7 @@ func TestACL_rolesToRawACL(t *testing.T) {
 }
 
 func TestACL_GetUserACL(t *testing.T) {
-	a := ACLMap{
+	a := ACLs{
 		"admin": ACL{
 			Fullaccess: true,
 			LabelFilter: metricsql.LabelFilter{
@@ -223,16 +223,16 @@ func TestACL_GetUserACL(t *testing.T) {
 	})
 }
 
-func TestACL_NewACLMapFromFile(t *testing.T) {
+func TestACL_NewACLsFromFile(t *testing.T) {
 	tests := []struct {
 		name    string
 		content string
-		want    ACLMap
+		want    ACLs
 	}{
 		{
 			name:    "admin",
 			content: "admin: .*",
-			want: ACLMap{
+			want: ACLs{
 				"admin": ACL{
 					Fullaccess: true,
 					LabelFilter: metricsql.LabelFilter{
@@ -248,7 +248,7 @@ func TestACL_NewACLMapFromFile(t *testing.T) {
 		{
 			name:    "implicit-admin",
 			content: `implicit-admin: ku.*, .*, min.*`,
-			want: ACLMap{
+			want: ACLs{
 				"implicit-admin": ACL{
 					Fullaccess: true,
 					LabelFilter: metricsql.LabelFilter{
@@ -264,7 +264,7 @@ func TestACL_NewACLMapFromFile(t *testing.T) {
 		{
 			name:    "multiple-values",
 			content: "multiple-values: ku.*, min.*",
-			want: ACLMap{
+			want: ACLs{
 				"multiple-values": ACL{
 					Fullaccess: false,
 					LabelFilter: metricsql.LabelFilter{
@@ -280,7 +280,7 @@ func TestACL_NewACLMapFromFile(t *testing.T) {
 		{
 			name:    "single-value",
 			content: "single-value: default",
-			want: ACLMap{
+			want: ACLs{
 				"single-value": ACL{
 					Fullaccess: false,
 					LabelFilter: metricsql.LabelFilter{
@@ -304,7 +304,7 @@ func TestACL_NewACLMapFromFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			saveACLToFile(t, f, tt.content)
-			got, err := NewACLMapFromFile(f.Name())
+			got, err := NewACLsFromFile(f.Name())
 			assert.Nil(t, err)
 			assert.Equal(t, tt.want, got)
 		})
@@ -312,11 +312,11 @@ func TestACL_NewACLMapFromFile(t *testing.T) {
 
 	t.Run("incorrect ACL", func(t *testing.T) {
 		saveACLToFile(t, f, "test-role:")
-		_, err := NewACLMapFromFile(f.Name())
+		_, err := NewACLsFromFile(f.Name())
 		assert.NotNil(t, err)
 
 		saveACLToFile(t, f, "test-role: a b")
-		_, err = NewACLMapFromFile(f.Name())
+		_, err = NewACLsFromFile(f.Name())
 		assert.NotNil(t, err)
 	})
 

@@ -22,7 +22,7 @@ import (
 type application struct {
 	errorLog                *log.Logger
 	logger                  *zerolog.Logger
-	ACLMap                  acl.ACLMap
+	ACLs                    acl.ACLs
 	proxy                   *httputil.ReverseProxy
 	verifier                *oidc.IDTokenVerifier
 	Debug                   bool          `env:"DEBUG" envDefault:"false"`
@@ -99,13 +99,13 @@ func main() {
 	}
 
 	if app.ACLPath != "" {
-		app.ACLMap, err = acl.NewACLMapFromFile(app.ACLPath)
+		app.ACLs, err = acl.NewACLsFromFile(app.ACLPath)
 		if err != nil {
 			app.logger.Fatal().Caller().
 				Err(err).Msgf("Failed to load ACL")
 		}
 
-		for role, acl := range app.ACLMap {
+		for role, acl := range app.ACLs {
 			app.logger.Info().Caller().
 				Msgf("Loaded role definition for %s: %q (converted to %s)", role, acl.RawACL, acl.LabelFilter.AppendString(nil))
 		}
