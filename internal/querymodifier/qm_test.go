@@ -319,6 +319,7 @@ func TestQueryModifier_modifyMetricExpr(t *testing.T) {
 	}
 }
 
+//gocyclo:ignore
 func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 	filtersNoTargetLabel := []metricsql.LabelFilter{
 		{
