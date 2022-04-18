@@ -320,47 +320,16 @@ func TestQueryModifier_modifyMetricExpr(t *testing.T) {
 }
 
 func TestQueryModifier_shouldNotBeModified(t *testing.T) {
-	t.Run("Original filters do not contain target label", func(t *testing.T) {
-		filters := []metricsql.LabelFilter{
-			{
-				Label:      "pod",
-				Value:      "minio",
-				IsRegexp:   false,
-				IsNegative: false,
-			},
-		}
+	filtersNoTargetLabel := []metricsql.LabelFilter{
+		{
+			Label:      "pod",
+			Value:      "minio",
+			IsRegexp:   false,
+			IsNegative: false,
+		},
+	}
 
-		qm, err := NewQueryModifier("min.*, control.*")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		want := false
-		got := qm.shouldNotBeModified(filters)
-		assert.Equal(t, want, got, "Original expression should be modified, because the original filters do not contain the target label")
-	})
-
-	t.Run("Original filter is a regexp and not a subfilter of the new ACL", func(t *testing.T) {
-		filters := []metricsql.LabelFilter{
-			{
-				Label:      "namespace",
-				Value:      "mini.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-		}
-
-		qm, err := NewQueryModifier("min.*, control.*")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		want := false
-		got := qm.shouldNotBeModified(filters)
-		assert.Equal(t, want, got, "Original expression should be modified, because the original filter is a regexp and not a subfilter of the new ACL")
-	})
-
-	filters := []metricsql.LabelFilter{
+	filtersNonRegexp := []metricsql.LabelFilter{
 		{
 			Label:      "namespace",
 			Value:      "minio",
@@ -369,104 +338,118 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 		},
 	}
 
-	t.Run("Not a regexp", func(t *testing.T) {
-		qm, err := NewQueryModifier("default")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		want := false
-		got := qm.shouldNotBeModified(filters)
-		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
-	})
-
-	// TODO: negative
-	t.Run("Negative non-matching complex regexp", func(t *testing.T) {
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "kube.*|control.*",
-				IsRegexp:   true,
-				IsNegative: true,
+	tests := []struct {
+		name          string
+		comment       string
+		rawACL        string
+		isNegativeACL bool // turns a regexp LF into a negative regexp LF
+		filters       []metricsql.LabelFilter
+		want          bool
+	}{
+		// Positive filtersNonRegexp
+		{
+			name:          "Not a regexp",
+			comment:       "Original expression should be modified, because the new filter is not a matching positive regexp",
+			rawACL:        "default",
+			isNegativeACL: false,
+			filters:       filtersNonRegexp,
+			want:          false,
+		},
+		{
+			name:          "Positive non-matching complex regexp",
+			comment:       "Original expression should be modified, because the new filter doesn't match original filter",
+			rawACL:        "kube.*, control.*",
+			isNegativeACL: false,
+			filters:       filtersNonRegexp,
+			want:          false,
+		},
+		{
+			name:          "Positive non-matching simple regexp",
+			comment:       "Original expression should be modified, because the new filter doesn't match original filter",
+			rawACL:        "ini.*",
+			isNegativeACL: false,
+			filters:       filtersNonRegexp,
+			want:          false,
+		},
+		// Negative filtersNonRegexp
+		{
+			name:          "Negative non-matching complex regexp",
+			comment:       "Original expression should be modified, because the new filter is not a matching positive regexp",
+			rawACL:        "kube.*, control.*",
+			isNegativeACL: true,
+			filters:       filtersNonRegexp,
+			want:          false,
+		},
+		{
+			name:          "Negative non-matching simple regexp",
+			comment:       "Original expression should be modified, because the new filter is not a matching positive regexp",
+			rawACL:        "ini.*",
+			isNegativeACL: true,
+			filters:       filtersNonRegexp,
+			want:          false,
+		},
+		{
+			name:          "Negative matching complex regexp",
+			comment:       "Original expression should be modified, because the new filter is not a matching positive regexp",
+			rawACL:        "min.*, control.*",
+			isNegativeACL: true,
+			filters:       filtersNonRegexp,
+			want:          false,
+		},
+		// Mixed cases
+		{
+			name:          "No filters",
+			comment:       "Original expression should be modified, because the list with original filters is empty",
+			rawACL:        "min.*, control.*",
+			isNegativeACL: false,
+			filters:       []metricsql.LabelFilter{},
+			want:          false,
+		},
+		{
+			name:          "Original filters do not contain target label",
+			comment:       "Original expression should be modified, because the original filters do not contain the target label",
+			rawACL:        "min.*, control.*",
+			isNegativeACL: false,
+			filters:       filtersNoTargetLabel,
+			want:          false,
+		},
+		{
+			name:          "Original filter is a regexp and not a subfilter of the new ACL",
+			comment:       "Original expression should be modified, because the original filter is a regexp and not a subfilter of the new ACL",
+			rawACL:        "min.*, control.*",
+			isNegativeACL: false,
+			filters: []metricsql.LabelFilter{
+				{
+					Label:      "namespace",
+					Value:      "mini.*",
+					IsRegexp:   true,
+					IsNegative: false,
+				},
 			},
-			RawACL: "kube.*, control.*",
-		}
+			want: false,
+		},
+	}
 
-		qm := QueryModifier{
-			ACL: acl,
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			qm, err := NewQueryModifier(tt.rawACL)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		want := false
-		got := qm.shouldNotBeModified(filters)
-		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
-	})
+			if tt.isNegativeACL {
+				// 1. NewACL cannot produce negative ACLs
+				// 2. Cannot convert non-regexp to a negative regexp
+				if qm.ACL.LabelFilter.IsNegative || !qm.ACL.LabelFilter.IsRegexp {
+					t.Fatal("Incorrect test data")
+				}
+				qm.ACL.LabelFilter.IsNegative = tt.isNegativeACL
+			}
 
-	// TODO: negative
-	t.Run("Negative non-matching simple regexp", func(t *testing.T) {
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "ini.*",
-				IsRegexp:   true,
-				IsNegative: true,
-			},
-			RawACL: "ini.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
-		}
-
-		want := false
-		got := qm.shouldNotBeModified(filters)
-		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
-	})
-
-	// TODO: negative
-	t.Run("Negative matching complex regexp", func(t *testing.T) {
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*|control.*",
-				IsRegexp:   true,
-				IsNegative: true,
-			},
-			RawACL: "min.*, control.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
-		}
-
-		want := false
-		got := qm.shouldNotBeModified(filters)
-		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
-	})
-
-	t.Run("Positive non-matching complex regexp", func(t *testing.T) {
-		qm, err := NewQueryModifier("kube.*, control.*")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		want := false
-		got := qm.shouldNotBeModified(filters)
-		assert.Equal(t, want, got, "Original expression should be modified, because the new filter doesn't match original filter")
-	})
-
-	t.Run("Positive non-matching simple regexp", func(t *testing.T) {
-		qm, err := NewQueryModifier("ini.*")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		want := false
-		got := qm.shouldNotBeModified(filters)
-		assert.Equal(t, want, got, "Original expression should be modified, because the new filter doesn't match original filter")
-	})
+			got := qm.shouldNotBeModified(tt.filters)
+			assert.Equal(t, tt.want, got, tt.comment)
+		})
+	}
 
 	t.Run("Repeating regexp filters (not subfilters)", func(t *testing.T) {
 		filters := []metricsql.LabelFilter{
@@ -555,7 +538,7 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := true
-		got := qm.shouldNotBeModified(filters)
+		got := qm.shouldNotBeModified(filtersNonRegexp)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is not a regexp and the new filter is a matching positive regexp")
 	})
 
@@ -704,7 +687,7 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := true
-		got := qm.shouldNotBeModified(filters)
+		got := qm.shouldNotBeModified(filtersNoTargetLabel)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the new filter gives full access")
 	})
 }
