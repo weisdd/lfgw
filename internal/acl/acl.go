@@ -8,6 +8,8 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
+const RegexpSymbols = `.+*?^$()[]{}|\`
+
 // ACL stores a role definition
 type ACL struct {
 	Fullaccess  bool
@@ -39,7 +41,7 @@ func NewACL(rawACL string) (ACL, error) {
 
 	if len(buffer) == 1 {
 		// TODO: move to a helper?
-		if strings.ContainsAny(buffer[0], `.+*?^$()[]{}|\`) {
+		if strings.ContainsAny(buffer[0], RegexpSymbols) {
 			lf.IsRegexp = true
 			// Trim anchors as they're not needed for Prometheus, and not expected in the app.shouldBeModified function
 			buffer[0] = strings.TrimLeft(buffer[0], "^")

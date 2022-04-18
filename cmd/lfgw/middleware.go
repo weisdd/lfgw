@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/rs/zerolog/hlog"
 	"github.com/weisdd/lfgw/internal/acl"
+	"github.com/weisdd/lfgw/internal/lf"
 )
 
 // nonProxiedEndpointsMiddleware is a workaround to support healthz and metrics endpoints while forwarding everything else to an upstream.
@@ -184,9 +185,14 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			return
 		}
 
+		qm := lf.QueryModifier{
+			ACL:                 acl,
+			EnableDeduplication: app.EnableDeduplication,
+			OptimizeExpressions: app.OptimizeExpressions,
+		}
+
 		// Adjust GET params
-		getParams := r.URL.Query()
-		newGetParams, err := app.prepareQueryParams(&getParams, acl)
+		newGetParams, err := qm.GetModifiedEncodedURLValues(r.URL.Query())
 		if err != nil {
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msg("")
@@ -197,7 +203,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		app.enrichDebugLogContext(r, "new_get_params", app.unescapedURLQuery(newGetParams))
 
 		// For PATCH, POST, and PUT requests
-		newPostParams, err := app.prepareQueryParams(&r.PostForm, acl)
+		newPostParams, err := qm.GetModifiedEncodedURLValues(r.PostForm)
 		if err != nil {
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msg("")

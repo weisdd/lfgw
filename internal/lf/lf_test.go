@@ -1,17 +1,158 @@
-package main
+package lf
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/VictoriaMetrics/metricsql"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/weisdd/lfgw/internal/acl"
 )
 
-func TestApplication_modifyMetricExpr(t *testing.T) {
-	logger := zerolog.New(nil)
+func TestQueryModifier_GetModifiedEncodedURLValues(t *testing.T) {
+	t.Run("No matching parameters", func(t *testing.T) {
+		params := url.Values{
+			"random": []string{"randomvalue"},
+		}
 
+		acl, err := acl.NewACL("minio")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		qm := QueryModifier{
+			ACL:                 acl,
+			EnableDeduplication: false,
+			OptimizeExpressions: false,
+		}
+
+		want := params.Encode()
+		got, err := qm.GetModifiedEncodedURLValues(params)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("query and match[]", func(t *testing.T) {
+		query := `request_duration{job="demo", namespace="other"}`
+
+		params := url.Values{
+			"query":   []string{query},
+			"match[]": []string{query},
+		}
+
+		newQuery := `request_duration{job="demo", namespace="minio"}`
+		newParams := url.Values{
+			"query":   []string{newQuery},
+			"match[]": []string{newQuery},
+		}
+
+		acl, err := acl.NewACL("minio")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		qm := QueryModifier{
+			ACL:                 acl,
+			EnableDeduplication: false,
+			OptimizeExpressions: false,
+		}
+		want := newParams.Encode()
+		got, err := qm.GetModifiedEncodedURLValues(params)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("Deduplicate", func(t *testing.T) {
+		query := `request_duration{job="demo", namespace=~"minio"}`
+
+		params := url.Values{
+			"query":   []string{query},
+			"match[]": []string{query},
+		}
+
+		newQueryDeduplicated := `request_duration{job="demo", namespace=~"minio"}`
+		newParamsDeduplicated := url.Values{
+			"query":   []string{newQueryDeduplicated},
+			"match[]": []string{newQueryDeduplicated},
+		}
+
+		newQueryNotDeduplicated := `request_duration{job="demo", namespace=~"mini.*"}`
+		newParamsNotDeduplicated := url.Values{
+			"query":   []string{newQueryNotDeduplicated},
+			"match[]": []string{newQueryNotDeduplicated},
+		}
+
+		acl, err := acl.NewACL("mini.*")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		qm := QueryModifier{
+			ACL:                 acl,
+			EnableDeduplication: false,
+			OptimizeExpressions: false,
+		}
+
+		qm.EnableDeduplication = true
+		want := newParamsDeduplicated.Encode()
+		got, err := qm.GetModifiedEncodedURLValues(params)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+
+		qm.EnableDeduplication = false
+		want = newParamsNotDeduplicated.Encode()
+		got, err = qm.GetModifiedEncodedURLValues(params)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("Optimize", func(t *testing.T) {
+		// Example is taken from https://github.com/VictoriaMetrics/metricsql/blob/50340b1c7e599295deafc510f5cb833de0669c20/optimizer_test.go#L149
+		query := `foo AND bar{baz="aa"}`
+
+		params := url.Values{
+			"query":   []string{query},
+			"match[]": []string{query},
+		}
+
+		newQueryOptimized := `foo{baz="aa", namespace="minio"} and bar{baz="aa", namespace="minio"}`
+		newParamsOptimized := url.Values{
+			"query":   []string{newQueryOptimized},
+			"match[]": []string{newQueryOptimized},
+		}
+
+		newQueryNotOptimized := `foo{namespace="minio"} and bar{baz="aa", namespace="minio"}`
+		newParamsNotOptimized := url.Values{
+			"query":   []string{newQueryNotOptimized},
+			"match[]": []string{newQueryNotOptimized},
+		}
+
+		acl, err := acl.NewACL("minio")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		qm := QueryModifier{
+			ACL:                 acl,
+			EnableDeduplication: false,
+			OptimizeExpressions: false,
+		}
+
+		qm.OptimizeExpressions = true
+		want := newParamsOptimized.Encode()
+		got, err := qm.GetModifiedEncodedURLValues(params)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+
+		qm.OptimizeExpressions = false
+		want = newParamsNotOptimized.Encode()
+		got, err = qm.GetModifiedEncodedURLValues(params)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+}
+
+func TestQueryModifier_modifyMetricExpr(t *testing.T) {
 	newACLPlain := acl.ACL{
 		Fullaccess: false,
 		LabelFilter: metricsql.LabelFilter{
@@ -157,9 +298,10 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			app := &application{
-				logger:              &logger,
+			qm := QueryModifier{
+				ACL:                 tt.acl,
 				EnableDeduplication: tt.EnableDeduplication,
+				OptimizeExpressions: true,
 			}
 
 			expr, err := metricsql.Parse(tt.query)
@@ -168,7 +310,7 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 			}
 			originalExpr := metricsql.Clone(expr)
 
-			newExpr := app.modifyMetricExpr(expr, tt.acl)
+			newExpr := qm.modifyMetricExpr(expr)
 			assert.Equal(t, originalExpr, expr, "The original expression got modified. Use metricsql.Clone() before modifying any expression.")
 
 			got := string(newExpr.AppendString(nil))
@@ -177,12 +319,248 @@ func TestApplication_modifyMetricExpr(t *testing.T) {
 	}
 }
 
-func TestApplication_isFakePositiveRegexp(t *testing.T) {
-	logger := zerolog.New(nil)
-	app := &application{
-		logger: &logger,
+func Test_appendOrMergeRegexpLF(t *testing.T) {
+	t.Run("Non-Regexp LF", func(t *testing.T) {
+		newFilter := metricsql.LabelFilter{
+			Label: "namespace",
+			Value: "ReplacedValue",
+		}
+
+		filters := []metricsql.LabelFilter{
+			{
+				Label: "namespace",
+				Value: "InitialValue",
+			},
+			{
+				Label:    "namespace",
+				Value:    "InitialVal.*",
+				IsRegexp: true,
+			},
+			{
+				Label:      "namespace",
+				Value:      "InitialValu.*",
+				IsRegexp:   true,
+				IsNegative: true,
+			},
+		}
+
+		want := []metricsql.LabelFilter{
+			{
+				Label: "namespace",
+				Value: "InitialValue",
+			},
+			{
+				Label:    "namespace",
+				Value:    "InitialVal.*",
+				IsRegexp: true,
+			},
+			{
+				Label:      "namespace",
+				Value:      "InitialValu.*",
+				IsRegexp:   true,
+				IsNegative: true,
+			},
+			// The function doesn't take into account non-regexp LFs, that's why it's added
+			{
+				Label: "namespace",
+				Value: "ReplacedValue",
+			},
+		}
+		got := appendOrMergeRegexpLF(filters, newFilter)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("Positive Regexp", func(t *testing.T) {
+		newFilter := metricsql.LabelFilter{
+			Label:    "namespace",
+			Value:    "ReplacedValue",
+			IsRegexp: true,
+		}
+
+		filters := []metricsql.LabelFilter{
+			{
+				Label: "namespace",
+				Value: "InitialValue",
+			},
+			{
+				Label:    "namespace",
+				Value:    "InitialVal.*",
+				IsRegexp: true,
+			},
+			{
+				Label:      "namespace",
+				Value:      "InitialValu.*",
+				IsRegexp:   true,
+				IsNegative: true,
+			},
+		}
+
+		want := []metricsql.LabelFilter{
+			{
+				Label: "namespace",
+				Value: "InitialValue",
+			},
+			// Only positive regexp should get modified (replaced)
+			{
+				Label:    "namespace",
+				Value:    "ReplacedValue",
+				IsRegexp: true,
+			},
+			{
+				Label:      "namespace",
+				Value:      "InitialValu.*",
+				IsRegexp:   true,
+				IsNegative: true,
+			},
+		}
+		got := appendOrMergeRegexpLF(filters, newFilter)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("Negative Regexp", func(t *testing.T) {
+		newFilter := metricsql.LabelFilter{
+			Label:      "namespace",
+			Value:      "MergedValue",
+			IsRegexp:   true,
+			IsNegative: true,
+		}
+
+		filters := []metricsql.LabelFilter{
+			{
+				Label: "namespace",
+				Value: "InitialValue",
+			},
+			{
+				Label:    "namespace",
+				Value:    "InitialVal.*",
+				IsRegexp: true,
+			},
+			{
+				Label:      "namespace",
+				Value:      "InitialValu.*",
+				IsRegexp:   true,
+				IsNegative: true,
+			},
+		}
+
+		want := []metricsql.LabelFilter{
+			{
+				Label: "namespace",
+				Value: "InitialValue",
+			},
+			{
+				Label:    "namespace",
+				Value:    "InitialVal.*",
+				IsRegexp: true,
+			},
+			// Only negative regexp should get modified (Merged)
+			{
+				Label:      "namespace",
+				Value:      "InitialValu.*|MergedValue",
+				IsRegexp:   true,
+				IsNegative: true,
+			},
+		}
+		got := appendOrMergeRegexpLF(filters, newFilter)
+		assert.Equal(t, want, got)
+	})
+
+}
+
+func Test_replaceLFByName(t *testing.T) {
+	newFilter := metricsql.LabelFilter{
+		Label: "namespace",
+		Value: "ReplacedValue",
 	}
 
+	t.Run("No matching label", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label: "job",
+				Value: "InitialValue",
+			},
+		}
+
+		want := []metricsql.LabelFilter{
+			{
+				Label: "job",
+				Value: "InitialValue",
+			},
+			{
+				Label: "namespace",
+				Value: "ReplacedValue",
+			},
+		}
+		got := replaceLFByName(filters, newFilter)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("1 matching label", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label: "job",
+				Value: "InitialValue",
+			},
+			{
+				Label: "namespace",
+				Value: "InitialValue",
+			},
+		}
+
+		want := []metricsql.LabelFilter{
+			{
+				Label: "job",
+				Value: "InitialValue",
+			},
+			{
+				Label: "namespace",
+				Value: "ReplacedValue",
+			},
+		}
+		got := replaceLFByName(filters, newFilter)
+		assert.Equal(t, want, got)
+
+	})
+
+	t.Run("many matching labels", func(t *testing.T) {
+		filters := []metricsql.LabelFilter{
+			{
+				Label: "job",
+				Value: "InitialValue",
+			},
+			{
+				Label: "namespace",
+				Value: "InitialValue",
+			},
+			{
+				Label:    "namespace",
+				Value:    "InitialValu.*",
+				IsRegexp: true,
+			},
+			{
+				Label:      "namespace",
+				Value:      "InitialValue.*",
+				IsRegexp:   true,
+				IsNegative: true,
+			},
+		}
+
+		want := []metricsql.LabelFilter{
+			{
+				Label: "job",
+				Value: "InitialValue",
+			},
+			{
+				Label: "namespace",
+				Value: "ReplacedValue",
+			},
+		}
+		got := replaceLFByName(filters, newFilter)
+		assert.Equal(t, want, got)
+	})
+}
+
+func Test_isFakePositiveRegexp(t *testing.T) {
 	t.Run("Not a regexp", func(t *testing.T) {
 		filter := metricsql.LabelFilter{
 			Label:      "namespace",
@@ -192,7 +570,7 @@ func TestApplication_isFakePositiveRegexp(t *testing.T) {
 		}
 
 		want := false
-		got := app.isFakePositiveRegexp(filter)
+		got := isFakePositiveRegexp(filter)
 		assert.Equal(t, want, got)
 	})
 
@@ -205,7 +583,7 @@ func TestApplication_isFakePositiveRegexp(t *testing.T) {
 		}
 
 		want := true
-		got := app.isFakePositiveRegexp(filter)
+		got := isFakePositiveRegexp(filter)
 		assert.Equal(t, want, got)
 	})
 
@@ -218,7 +596,7 @@ func TestApplication_isFakePositiveRegexp(t *testing.T) {
 		}
 
 		want := false
-		got := app.isFakePositiveRegexp(filter)
+		got := isFakePositiveRegexp(filter)
 		assert.Equal(t, want, got)
 	})
 
@@ -231,7 +609,7 @@ func TestApplication_isFakePositiveRegexp(t *testing.T) {
 		}
 
 		want := false
-		got := app.isFakePositiveRegexp(filter)
+		got := isFakePositiveRegexp(filter)
 		assert.Equal(t, want, got)
 	})
 
@@ -244,17 +622,12 @@ func TestApplication_isFakePositiveRegexp(t *testing.T) {
 		}
 
 		want := false
-		got := app.isFakePositiveRegexp(filter)
+		got := isFakePositiveRegexp(filter)
 		assert.Equal(t, want, got)
 	})
 }
 
-func TestApplication_shouldNotBeModified(t *testing.T) {
-	logger := zerolog.New(nil)
-	app := &application{
-		logger: &logger,
-	}
-
+func Test_shouldNotBeModified(t *testing.T) {
 	t.Run("Original filters do not contain target label", func(t *testing.T) {
 		filters := []metricsql.LabelFilter{
 			{
@@ -277,7 +650,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := false
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should be modified, because the original filters do not contain the target label")
 	})
 
@@ -303,7 +676,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := false
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should be modified, because the original filter is a regexp and not a subfilter of the new ACL")
 	})
 
@@ -327,7 +700,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := false
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
 	})
 
@@ -344,7 +717,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := false
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
 	})
 
@@ -361,7 +734,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := false
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
 	})
 
@@ -378,7 +751,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := false
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
 	})
 
@@ -395,7 +768,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := false
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter doesn't match original filter")
 	})
 
@@ -412,7 +785,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := false
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter doesn't match original filter")
 	})
 
@@ -444,7 +817,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := false
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should be modified, because the original filters contain regexp filters, which are not subfilters of the new filter")
 	})
 
@@ -476,7 +849,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := false
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should be modified, because the original filters are regexps, one of which is not a subfilter of the new filter")
 	})
 
@@ -508,7 +881,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := false
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should be modified, because amongst the original filters with the same label (regexp, non-regexp) there is a regexp, which is not a subfilter of the new filter")
 	})
 
@@ -527,7 +900,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := true
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is not a regexp and the new filter is a matching positive regexp")
 	})
 
@@ -553,7 +926,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := true
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is a fake positive regexp (it doesn't contain any special characters, should have been a non-regexp expression, e.g. namespace=~\"kube-system\") and the new filter is a matching positive regexp")
 	})
 
@@ -579,7 +952,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := true
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter is a regexp subfilter of the ACL")
 	})
 
@@ -611,7 +984,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := true
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filters are subfilters of the new filter")
 	})
 
@@ -643,7 +1016,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := true
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the original filter contains the same non-regexp label filter multiple times and the new filter matches")
 	})
 
@@ -675,7 +1048,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := true
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because original filters contain a mix of a fake regexp and a non-regexp filters (basically, they're equal in results)")
 	})
 
@@ -701,7 +1074,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := true
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because original filter and the new filter contain the same regexp")
 	})
 
@@ -718,7 +1091,7 @@ func TestApplication_shouldNotBeModified(t *testing.T) {
 		}
 
 		want := true
-		got := app.shouldNotBeModified(filters, acl)
+		got := shouldNotBeModified(filters, acl)
 		assert.Equal(t, want, got, "Original expression should NOT be modified, because the new filter gives full access")
 	})
 }
