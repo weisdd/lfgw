@@ -339,6 +339,15 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 		},
 	}
 
+	filtersNegativeNonRegexp := []metricsql.LabelFilter{
+		{
+			Label:      "namespace",
+			Value:      "minio",
+			IsRegexp:   false,
+			IsNegative: true,
+		},
+	}
+
 	tests := []struct {
 		name          string
 		comment       string
@@ -412,6 +421,14 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			rawACL:        "min.*, control.*",
 			isNegativeACL: false,
 			filters:       filtersNoTargetLabel,
+			want:          false,
+		},
+		{
+			name:          "Original filter is a negative non-regexp",
+			comment:       "Original expression should be modified, because it is a negative non-regexp",
+			rawACL:        "min.*",
+			isNegativeACL: false,
+			filters:       filtersNegativeNonRegexp,
 			want:          false,
 		},
 		{
@@ -528,26 +545,6 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 		want := false
 		got := qm.shouldNotBeModified(filters)
 		assert.Equal(t, want, got, "Original expression should be modified, because amongst the original filters with the same label (regexp, non-regexp) there is a regexp, which is not a subfilter of the new filter")
-	})
-
-	t.Run("Original filter is a negative non-regexp", func(t *testing.T) {
-		filters := []metricsql.LabelFilter{
-			{
-				Label:      "namespace",
-				Value:      "minio",
-				IsRegexp:   false,
-				IsNegative: true,
-			},
-		}
-
-		qm, err := NewQueryModifier("min.*")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		want := false
-		got := qm.shouldNotBeModified(filters)
-		assert.Equal(t, want, got, "Original expression should be modified, because it is a negative non-regexp")
 	})
 
 	// Matching cases
