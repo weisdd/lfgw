@@ -116,6 +116,12 @@ func (qm *QueryModifier) shouldNotBeModified(filters []metricsql.LabelFilter) bo
 	return seen > 0 && seen == seenUnmodified
 }
 
+// NewQueryModifier returns a QueryModifier containing an ACL built from rawACL.
+func NewQueryModifier(rawACL string) (QueryModifier, error) {
+	acl, err := NewACL(rawACL)
+	return QueryModifier{ACL: acl}, err
+}
+
 // appendOrMergeRegexpLF appends label filter or merges its value in case it's a regexp with the same label name and of the same type (negative / positive).
 func appendOrMergeRegexpLF(filters []metricsql.LabelFilter, newFilter metricsql.LabelFilter) []metricsql.LabelFilter {
 	newFilters := make([]metricsql.LabelFilter, 0, cap(filters)+1)

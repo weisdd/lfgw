@@ -330,19 +330,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*|control.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "min.*, control.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("min.*, control.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := false
@@ -360,19 +350,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*|control.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "min.*, control.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("min.*, control.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := false
@@ -390,17 +370,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 	}
 
 	t.Run("Not a regexp", func(t *testing.T) {
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label: "namespace",
-				Value: "default",
-			},
-			RawACL: "default",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("default")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := false
@@ -408,6 +380,7 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
 	})
 
+	// TODO: negative
 	t.Run("Negative non-matching complex regexp", func(t *testing.T) {
 		acl := ACL{
 			Fullaccess: false,
@@ -429,6 +402,7 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
 	})
 
+	// TODO: negative
 	t.Run("Negative non-matching simple regexp", func(t *testing.T) {
 		acl := ACL{
 			Fullaccess: false,
@@ -450,6 +424,7 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 		assert.Equal(t, want, got, "Original expression should be modified, because the new filter is not a matching positive regexp")
 	})
 
+	// TODO: negative
 	t.Run("Negative matching complex regexp", func(t *testing.T) {
 		acl := ACL{
 			Fullaccess: false,
@@ -472,19 +447,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 	})
 
 	t.Run("Positive non-matching complex regexp", func(t *testing.T) {
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "kube.*|control.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "kube.*, control.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("kube.*, control.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := false
@@ -493,19 +458,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 	})
 
 	t.Run("Positive non-matching simple regexp", func(t *testing.T) {
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "ini.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "ini.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("ini.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := false
@@ -529,19 +484,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "mini.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "mini.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("mini.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := false
@@ -565,19 +510,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*|control.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "min.*, control.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("min.*, control.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := false
@@ -601,19 +536,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "mini.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "mini.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("mini.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := false
@@ -624,19 +549,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 	// Matching cases
 
 	t.Run("Original filter is not a regexp, new filter matches", func(t *testing.T) {
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*|control.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "min.*, control.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("min.*, control.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := true
@@ -654,19 +569,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*|control.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "min.*, control.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("min.*, control.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := true
@@ -684,19 +589,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*|control.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "min.*, control.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("min.*, control.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := true
@@ -720,19 +615,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*|control.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "min.*, control.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("min.*, control.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := true
@@ -756,19 +641,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "mini.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "mini.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("mini.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := true
@@ -792,19 +667,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "mini.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "mini.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("mini.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := true
@@ -822,19 +687,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			},
 		}
 
-		acl := ACL{
-			Fullaccess: false,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      "min.*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: "min.*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier("min.*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := true
@@ -843,19 +698,9 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 	})
 
 	t.Run("The new filter gives full access", func(t *testing.T) {
-		acl := ACL{
-			Fullaccess: true,
-			LabelFilter: metricsql.LabelFilter{
-				Label:      "namespace",
-				Value:      ".*",
-				IsRegexp:   true,
-				IsNegative: false,
-			},
-			RawACL: ".*",
-		}
-
-		qm := QueryModifier{
-			ACL: acl,
+		qm, err := NewQueryModifier(".*")
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		want := true
