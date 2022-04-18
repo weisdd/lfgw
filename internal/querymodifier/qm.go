@@ -87,7 +87,8 @@ func (qm *QueryModifier) shouldNotBeModified(filters []metricsql.LabelFilter) bo
 	newLF := qm.ACL.LabelFilter
 
 	for _, filter := range filters {
-		if filter.Label == newLF.Label && newLF.IsRegexp && !newLF.IsNegative {
+		// For filter, only positive regexps and non-regexps considered
+		if filter.Label == newLF.Label && !filter.IsNegative && newLF.IsRegexp && !newLF.IsNegative {
 			seen++
 
 			// Target: non-regexps or fake regexps
@@ -102,7 +103,7 @@ func (qm *QueryModifier) shouldNotBeModified(filters []metricsql.LabelFilter) bo
 			}
 
 			// Target: both are positive regexps, filter is a subfilter of the newLF or has the same value
-			if filter.IsRegexp && !filter.IsNegative {
+			if filter.IsRegexp {
 				for _, rawSubACL := range rawSubACLs {
 					if filter.Value == rawSubACL {
 						seenUnmodified++
