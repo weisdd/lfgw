@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
+// RegexpSymbols is used to determine whether ACL definition is a regexp or whether LF contains a fake regexp
 const RegexpSymbols = `.+*?^$()[]{}|\`
 
 // ACL stores a role definition

@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
+// QueryModifier is used for modifying PromQL / MetricsQL requests. The exact changes are determined by an ACL and further tuned by deduplication and expression optimizations.
 type QueryModifier struct {
 	ACL                 ACL
 	EnableDeduplication bool
@@ -18,7 +19,6 @@ type QueryModifier struct {
 func (qm *QueryModifier) GetModifiedEncodedURLValues(params url.Values) (string, error) {
 	newParams := url.Values{}
 
-	// TODO: rewrite?
 	for k, vv := range params {
 		switch k {
 		case "query", "match[]":
