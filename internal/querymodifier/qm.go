@@ -19,6 +19,10 @@ type QueryModifier struct {
 func (qm *QueryModifier) GetModifiedEncodedURLValues(params url.Values) (string, error) {
 	newParams := url.Values{}
 
+	if qm.ACL.RawACL == "" || string(qm.ACL.LabelFilter.AppendString(nil)) == "" {
+		return "", fmt.Errorf("ACL cannot be empty")
+	}
+
 	for k, vv := range params {
 		switch k {
 		case "query", "match[]":

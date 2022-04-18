@@ -10,6 +10,22 @@ import (
 
 func TestQueryModifier_GetModifiedEncodedURLValues(t *testing.T) {
 	// TODO: test that the original URL.Values haven't changed
+
+	t.Run("Empty ACL", func(t *testing.T) {
+		params := url.Values{
+			"random": []string{"randomvalue"},
+		}
+
+		qm := QueryModifier{
+			ACL:                 ACL{},
+			EnableDeduplication: false,
+			OptimizeExpressions: false,
+		}
+
+		_, err := qm.GetModifiedEncodedURLValues(params)
+		assert.NotNil(t, err)
+	})
+
 	t.Run("No matching parameters", func(t *testing.T) {
 		params := url.Values{
 			"random": []string{"randomvalue"},
