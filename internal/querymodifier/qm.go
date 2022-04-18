@@ -174,11 +174,5 @@ func replaceLFByName(filters []metricsql.LabelFilter, newFilter metricsql.LabelF
 
 // isFakePositiveRegexp returns true if the given filter is a positive regexp that doesn't contain special symbols, e.g. namespace=~"kube-system"
 func isFakePositiveRegexp(filter metricsql.LabelFilter) bool {
-	if filter.IsRegexp && !filter.IsNegative {
-		if !strings.ContainsAny(filter.Value, RegexpSymbols) {
-			return true
-		}
-	}
-
-	return false
+	return filter.IsRegexp && !filter.IsNegative && !strings.ContainsAny(filter.Value, RegexpSymbols)
 }
