@@ -10,8 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/rs/zerolog/hlog"
-	"github.com/weisdd/lfgw/internal/acl"
-	"github.com/weisdd/lfgw/internal/lf"
+	"github.com/weisdd/lfgw/internal/querymodifier"
 )
 
 // nonProxiedEndpointsMiddleware is a workaround to support healthz and metrics endpoints while forwarding everything else to an upstream.
@@ -165,7 +164,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			return
 		}
 
-		acl, ok := r.Context().Value(contextKeyACL).(acl.ACL)
+		acl, ok := r.Context().Value(contextKeyACL).(querymodifier.ACL)
 		if !ok {
 			// Should never happen. It means OIDC middleware hasn't done it's job
 			app.serverError(w, r, fmt.Errorf("ACL is not set in the context"))
@@ -185,7 +184,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			return
 		}
 
-		qm := lf.QueryModifier{
+		qm := querymodifier.QueryModifier{
 			ACL:                 acl,
 			EnableDeduplication: app.EnableDeduplication,
 			OptimizeExpressions: app.OptimizeExpressions,

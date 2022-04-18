@@ -1,4 +1,4 @@
-package lf
+package querymodifier
 
 import (
 	"fmt"
@@ -6,11 +6,10 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/metricsql"
-	"github.com/weisdd/lfgw/internal/acl"
 )
 
 type QueryModifier struct {
-	ACL                 acl.ACL
+	ACL                 ACL
 	EnableDeduplication bool
 	OptimizeExpressions bool
 }
@@ -165,7 +164,7 @@ func replaceLFByName(filters []metricsql.LabelFilter, newFilter metricsql.LabelF
 // isFakePositiveRegexp returns true if the given filter is a positive regexp that doesn't contain special symbols, e.g. namespace=~"kube-system"
 func isFakePositiveRegexp(filter metricsql.LabelFilter) bool {
 	if filter.IsRegexp && !filter.IsNegative {
-		if !strings.ContainsAny(filter.Value, acl.RegexpSymbols) {
+		if !strings.ContainsAny(filter.Value, RegexpSymbols) {
 			return true
 		}
 	}

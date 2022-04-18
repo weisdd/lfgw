@@ -1,4 +1,4 @@
-package acl
+package querymodifier
 
 import (
 	"fmt"

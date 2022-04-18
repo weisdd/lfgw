@@ -13,7 +13,7 @@ import (
 	oidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
-	"github.com/weisdd/lfgw/internal/acl"
+	"github.com/weisdd/lfgw/internal/querymodifier"
 	"go.uber.org/automaxprocs/maxprocs"
 )
 
@@ -22,7 +22,7 @@ import (
 type application struct {
 	errorLog                *log.Logger
 	logger                  *zerolog.Logger
-	ACLs                    acl.ACLs
+	ACLs                    querymodifier.ACLs
 	proxy                   *httputil.ReverseProxy
 	verifier                *oidc.IDTokenVerifier
 	Debug                   bool          `env:"DEBUG" envDefault:"false"`
@@ -99,7 +99,7 @@ func main() {
 	}
 
 	if app.ACLPath != "" {
-		app.ACLs, err = acl.NewACLsFromFile(app.ACLPath)
+		app.ACLs, err = querymodifier.NewACLsFromFile(app.ACLPath)
 		if err != nil {
 			app.logger.Fatal().Caller().
 				Err(err).Msgf("Failed to load ACL")
