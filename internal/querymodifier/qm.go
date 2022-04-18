@@ -91,7 +91,7 @@ func (qm *QueryModifier) shouldNotBeModified(filters []metricsql.LabelFilter) bo
 	newLF := qm.ACL.LabelFilter
 
 	for _, filter := range filters {
-		// For filter, only positive regexps and non-regexps considered
+		// For filter, only positive regexps and non-regexps considered, for newLF - positive regexps.
 		if filter.Label == newLF.Label && !filter.IsNegative && newLF.IsRegexp && !newLF.IsNegative {
 			seen++
 
