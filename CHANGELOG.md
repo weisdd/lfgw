@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 0.11.3
+
+- Key changes:
+  - Fixed deduplication for negative non-regexp filters (previously, those would be let through without request modifications);
+  - Internal refactoring:
+    - Moved acl + lf logic to a new internal package `querymodifier`;
+  - Added more tests.
+
 ## 0.11.2
 
 - Key changes:

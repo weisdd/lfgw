@@ -19,4 +19,4 @@ linters:
 
 linters-settings:
   gocyclo:
-    min-complexity: 16
+    min-complexity: 17

@@ -31,7 +31,7 @@ func (app *application) clientErrorMessage(w http.ResponseWriter, status int, er
 
 // getRawAccessToken returns a raw access token
 func (app *application) getRawAccessToken(r *http.Request) (string, error) {
-	headers := []string{"X-Forwarded-Access-Token", "X-Auth-Request-Access-Token", "Authorization"}
+	headers := []string{"Authorization", "X-Forwarded-Access-Token", "X-Auth-Request-Access-Token"}
 
 	for _, h := range headers {
 		t := r.Header.Get(h)

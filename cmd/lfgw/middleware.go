@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/rs/zerolog/hlog"
+	"github.com/weisdd/lfgw/internal/querymodifier"
 )
 
 // nonProxiedEndpointsMiddleware is a workaround to support healthz and metrics endpoints while forwarding everything else to an upstream.
@@ -133,7 +134,7 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 		// NOTE: The field will contain all roles present in the token, not only those that are considered during ACL generation process
 		app.enrichDebugLogContext(r, "roles", strings.Join(claims.Roles, ", "))
 
-		acl, err := app.getACL(claims.Roles)
+		acl, err := app.ACLs.GetUserACL(claims.Roles, app.AssumedRolesEnabled)
 		if err != nil {
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msg("")
@@ -163,7 +164,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			return
 		}
 
-		acl, ok := r.Context().Value(contextKeyACL).(ACL)
+		acl, ok := r.Context().Value(contextKeyACL).(querymodifier.ACL)
 		if !ok {
 			// Should never happen. It means OIDC middleware hasn't done it's job
 			app.serverError(w, r, fmt.Errorf("ACL is not set in the context"))
@@ -183,9 +184,14 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 			return
 		}
 
+		qm := querymodifier.QueryModifier{
+			ACL:                 acl,
+			EnableDeduplication: app.EnableDeduplication,
+			OptimizeExpressions: app.OptimizeExpressions,
+		}
+
 		// Adjust GET params
-		getParams := r.URL.Query()
-		newGetParams, err := app.prepareQueryParams(&getParams, acl)
+		newGetParams, err := qm.GetModifiedEncodedURLValues(r.URL.Query())
 		if err != nil {
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msg("")
@@ -196,7 +202,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		app.enrichDebugLogContext(r, "new_get_params", app.unescapedURLQuery(newGetParams))
 
 		// For PATCH, POST, and PUT requests
-		newPostParams, err := app.prepareQueryParams(&r.PostForm, acl)
+		newPostParams, err := qm.GetModifiedEncodedURLValues(r.PostForm)
 		if err != nil {
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msg("")
