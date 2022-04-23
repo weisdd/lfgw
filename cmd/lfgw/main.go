@@ -33,8 +33,23 @@ func main() {
 		UsageText: "lfgw [flags]",
 		// UseShortOptionHandling: true,
 		// EnableBashCompletion:   true,
-		// HideHelpCommand:        true,
-		Action: gw.Run,
+		HideHelpCommand: true,
+		Action:          gw.Run,
+		Before: func(c *cli.Context) error {
+			nonEmptyStrings := []string{"upstream-url", "oidc-realm-url", "oidc-client-id"}
+
+			for _, key := range nonEmptyStrings {
+				if c.String(key) == "" {
+					return fmt.Errorf("%s cannot be empty", key)
+				}
+			}
+
+			if c.String("acl-path") == "" && !c.Bool("assumed-roles") {
+				return fmt.Errorf("The app cannot run without at least one configuration source: defined acl-path or assumed-roles set to true")
+			}
+
+			return nil
+		},
 		// TODO: reorder
 		Flags: []cli.Flag{
 			&cli.BoolFlag{

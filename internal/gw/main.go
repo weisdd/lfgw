@@ -53,12 +53,8 @@ func Run(c *cli.Context) error {
 	// TODO: check that all default values were correctly propagated
 	// TODO: check the same
 	// TODO: tests for each option to make sure values change
-	upstreamURLRaw := c.String("upstream-url")
-	if upstreamURLRaw == "" {
-		return fmt.Errorf("upstream-url cannot be empty")
-	}
 
-	upstreamURL, err := url.Parse(upstreamURLRaw)
+	upstreamURL, err := url.Parse(c.String("upstream-url"))
 	if err != nil {
 		return fmt.Errorf("Failed to parse upstream-url: %s", err)
 	}
@@ -82,14 +78,6 @@ func Run(c *cli.Context) error {
 		ReadTimeout:             c.Duration("read-timeout"),
 		WriteTimeout:            c.Duration("write-timeout"),
 		GracefulShutdownTimeout: c.Duration("graceful-shutdown-timeout"),
-	}
-
-	if app.ACLPath == "" && !app.AssumedRolesEnabled {
-		return fmt.Errorf("The app cannot run without at least one configuration source: defined acl-path or assumed-roles set to true")
-	}
-
-	if app.OIDCRealmURL == "" {
-		return fmt.Errorf("oidc-realm-url cannot be empty")
 	}
 
 	// TODO: return an error?
