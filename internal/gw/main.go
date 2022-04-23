@@ -48,6 +48,7 @@ type application struct {
 	GracefulShutdownTimeout time.Duration
 }
 
+// newApplication returns application struct built from *cli.Context
 func newApplication(c *cli.Context) (application, error) {
 	upstreamURL, err := url.Parse(c.String("upstream-url"))
 	if err != nil {
@@ -78,11 +79,8 @@ func newApplication(c *cli.Context) (application, error) {
 	return app, nil
 }
 
+// Run is used as an entrypoint for cli
 func Run(c *cli.Context) error {
-	// TODO: check that all default values were correctly propagated
-	// TODO: check the default values stay the same
-	// TODO: tests for each option to make sure values change
-
 	app, err := newApplication(c)
 	if err != nil {
 		return err
@@ -93,6 +91,7 @@ func Run(c *cli.Context) error {
 	return nil
 }
 
+// configureRuntime configures GOMAXPROCS
 func (app *application) configureRuntime() {
 	if app.SetGomaxProcs {
 		undo, err := maxprocs.Set()
@@ -106,6 +105,7 @@ func (app *application) configureRuntime() {
 		Msgf("Runtime settings: GOMAXPROCS = %d", runtime.GOMAXPROCS(0))
 }
 
+// Run starts lfgw (main-like function)
 func (app *application) Run() {
 	app.configureLogging()
 	app.configureRuntime()

@@ -181,7 +181,6 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		// TODO: fatal?
 		fmt.Printf("%+v: %+v", os.Args[0], err)
 	}
 }
