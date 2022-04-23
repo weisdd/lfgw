@@ -6,17 +6,19 @@ import (
 	"log"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"runtime"
 	"time"
 
 	oidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/rs/zerolog"
-	zlog "github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
 	"github.com/weisdd/lfgw/internal/querymodifier"
 	"go.uber.org/automaxprocs/maxprocs"
 )
+
+type contextKey string
+
+const contextKeyACL = contextKey("acl")
 
 // Define an application struct to hold the application-wide dependencies for the
 // web application.
@@ -46,20 +48,19 @@ type application struct {
 	GracefulShutdownTimeout time.Duration
 }
 
-type contextKey string
-
-const contextKeyACL = contextKey("acl")
-
 func Run(c *cli.Context) error {
 	// TODO: move conversion further?
 	// TODO: check that all default values were correctly propagated
 	// TODO: check the same
 	// TODO: tests for each option to make sure values change
-	upstreamURL, err := url.Parse(c.String("upstream-url"))
-	if err != nil {
-		return err
-	} else if upstreamURL.Host == "" {
+	upstreamURLRaw := c.String("upstream-url")
+	if upstreamURLRaw == "" {
 		return fmt.Errorf("upstream-url cannot be empty")
+	}
+
+	upstreamURL, err := url.Parse(upstreamURLRaw)
+	if err != nil {
+		return fmt.Errorf("Failed to parse upstream-url: %s", err)
 	}
 
 	app := application{
@@ -83,30 +84,22 @@ func Run(c *cli.Context) error {
 		GracefulShutdownTimeout: c.Duration("graceful-shutdown-timeout"),
 	}
 
+	if app.ACLPath == "" && !app.AssumedRolesEnabled {
+		return fmt.Errorf("The app cannot run without at least one configuration source: defined acl-path or assumed-roles set to true")
+	}
+
+	if app.OIDCRealmURL == "" {
+		return fmt.Errorf("oidc-realm-url cannot be empty")
+	}
+
+	// TODO: return an error?
+	// TODO: pass a pointer?
 	run(app)
 
 	return nil
 }
 
-func run(app application) {
-	zlog.Logger = zlog.Output(os.Stdout)
-	app.logger = &zlog.Logger
-	logWrapper := stdErrorLogWrapper{logger: app.logger}
-	// NOTE: don't delete log.Lshortfile
-	app.errorLog = log.New(logWrapper, "", log.Lshortfile)
-
-	zerolog.CallerMarshalFunc = app.lshortfile
-	zerolog.DurationFieldUnit = time.Second
-
-	// TODO: think of something better?
-	if app.LogFormat == "pretty" {
-		zlog.Logger = zlog.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: app.LogNoColor})
-	}
-
-	if app.Debug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
-
+func (app *application) configureRuntime() {
 	if app.SetGomaxProcs {
 		undo, err := maxprocs.Set()
 		defer undo()
@@ -117,6 +110,11 @@ func run(app application) {
 	}
 	app.logger.Info().Caller().
 		Msgf("Runtime settings: GOMAXPROCS = %d", runtime.GOMAXPROCS(0))
+}
+
+func run(app application) {
+	app.configureLogging()
+	app.configureRuntime()
 
 	if app.AssumedRolesEnabled {
 		app.logger.Info().Caller().
@@ -140,11 +138,6 @@ func run(app application) {
 				Msgf("Loaded role definition for %s: %q (converted to %s)", role, acl.RawACL, acl.LabelFilter.AppendString(nil))
 		}
 	} else {
-		if !app.AssumedRolesEnabled {
-			app.logger.Fatal().Caller().
-				Msgf("The app cannot run without at least one source of configuration (Non-empty ACL_PATH and/or ASSUMED_ROLES set to true)")
-		}
-
 		app.logger.Info().Caller().
 			Msgf("ACL_PATH is empty, thus predefined roles are not loaded")
 	}
@@ -164,11 +157,6 @@ func run(app application) {
 		ClientID: app.OIDCClientID,
 	}
 	app.verifier = provider.Verifier(oidcConfig)
-
-	app.proxy = httputil.NewSingleHostReverseProxy(app.UpstreamURL)
-	// TODO: somehow pass more context to ErrorLog (unsafe?)
-	app.proxy.ErrorLog = app.errorLog
-	app.proxy.FlushInterval = time.Millisecond * 200
 
 	err = app.serve()
 	if err != nil {

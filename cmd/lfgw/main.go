@@ -19,7 +19,7 @@ func main() {
 	app := &cli.App{
 		Name: "lfgw",
 		// TODO: pass value through Dockerfile
-		Version: version,
+		Version: fmt.Sprintf("%s (commit: %s)", version, commit),
 		// TODO: can't find where it's printed
 		Compiled: time.Now(),
 		Authors: []*cli.Author{
@@ -65,7 +65,6 @@ func main() {
 				Value:    false,
 				Required: false,
 			},
-			// TODO: will need to convert to *url.URL!
 			&cli.StringFlag{
 				Name:     "upstream-url",
 				Usage:    "Prometheus URL, e.g. http://prometheus.microk8s.localhost",

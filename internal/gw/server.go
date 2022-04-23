@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,6 +14,11 @@ import (
 
 // serve starts a web server and ensures graceful shutdown
 func (app *application) serve() error {
+	app.proxy = httputil.NewSingleHostReverseProxy(app.UpstreamURL)
+	// TODO: somehow pass more context to ErrorLog (unsafe?)
+	app.proxy.ErrorLog = app.errorLog
+	app.proxy.FlushInterval = time.Millisecond * 200
+
 	// TODO: somehow pass more context to ErrorLog
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", app.Port),
