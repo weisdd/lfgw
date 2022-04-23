@@ -10,12 +10,18 @@ import (
 	"os"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+)
+
 func main() {
 	app := &cli.App{
 		Name: "lfgw",
-		// TODO: take from a variable
-		// Version:  "v0.1.0",
-		// Compiled: time.Now(),
+		// TODO: pass value through Dockerfile
+		Version: version,
+		// TODO: can't find where it's printed
+		Compiled: time.Now(),
 		Authors: []*cli.Author{
 			{
 				Name: "weisdd",
