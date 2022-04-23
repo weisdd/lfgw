@@ -48,15 +48,10 @@ type application struct {
 	GracefulShutdownTimeout time.Duration
 }
 
-func Run(c *cli.Context) error {
-	// TODO: move conversion further?
-	// TODO: check that all default values were correctly propagated
-	// TODO: check the same
-	// TODO: tests for each option to make sure values change
-
+func newApplication(c *cli.Context) (application, error) {
 	upstreamURL, err := url.Parse(c.String("upstream-url"))
 	if err != nil {
-		return fmt.Errorf("failed to parse upstream-url: %s", err)
+		return application{}, fmt.Errorf("failed to parse upstream-url: %s", err)
 	}
 
 	app := application{
@@ -80,9 +75,20 @@ func Run(c *cli.Context) error {
 		GracefulShutdownTimeout: c.Duration("graceful-shutdown-timeout"),
 	}
 
-	// TODO: return an error?
-	// TODO: pass a pointer?
-	run(app)
+	return app, nil
+}
+
+func Run(c *cli.Context) error {
+	// TODO: check that all default values were correctly propagated
+	// TODO: check the default values stay the same
+	// TODO: tests for each option to make sure values change
+
+	app, err := newApplication(c)
+	if err != nil {
+		return err
+	}
+
+	app.Run()
 
 	return nil
 }
@@ -100,7 +106,7 @@ func (app *application) configureRuntime() {
 		Msgf("Runtime settings: GOMAXPROCS = %d", runtime.GOMAXPROCS(0))
 }
 
-func run(app application) {
+func (app *application) Run() {
 	app.configureLogging()
 	app.configureRuntime()
 
