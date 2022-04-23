@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.12.0
+
+- Key changes:
+  - Migrated to urfave CLI.
+
 ## 0.11.3
 
 - Key changes:
