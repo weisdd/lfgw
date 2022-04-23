@@ -56,7 +56,7 @@ func Run(c *cli.Context) error {
 
 	upstreamURL, err := url.Parse(c.String("upstream-url"))
 	if err != nil {
-		return fmt.Errorf("Failed to parse upstream-url: %s", err)
+		return fmt.Errorf("failed to parse upstream-url: %s", err)
 	}
 
 	app := application{

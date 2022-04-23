@@ -45,7 +45,7 @@ func main() {
 			}
 
 			if c.String("acl-path") == "" && !c.Bool("assumed-roles") {
-				return fmt.Errorf("The app cannot run without at least one configuration source: defined acl-path or assumed-roles set to true")
+				return fmt.Errorf("the app cannot run without at least one configuration source: defined acl-path or assumed-roles set to true")
 			}
 
 			return nil
