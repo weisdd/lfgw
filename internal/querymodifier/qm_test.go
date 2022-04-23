@@ -440,9 +440,17 @@ func TestQueryModifier_shouldNotBeModified(t *testing.T) {
 			want:          false,
 		},
 		{
-			name:          "Original filter is a negative non-regexp",
+			name:          "Original filter is a negative non-regexp, ACL is a regexp",
 			comment:       "Original expression should be modified, because it is a negative non-regexp",
 			rawACL:        "min.*",
+			isNegativeACL: false,
+			filters:       filtersNegativeNonRegexp,
+			want:          false,
+		},
+		{
+			name:          "Original filter is a negative non-regexp, ACL is not a regexp",
+			comment:       "Original expression should be modified, because it is a negative non-regexp",
+			rawACL:        "minio",
 			isNegativeACL: false,
 			filters:       filtersNegativeNonRegexp,
 			want:          false,
