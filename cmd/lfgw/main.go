@@ -1,148 +1,167 @@
 package main
 
 import (
-	"context"
-	"log"
-	"net/http/httputil"
-	"net/url"
-	"os"
-	"runtime"
 	"time"
 
-	"github.com/caarlos0/env/v6"
-	oidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/rs/zerolog"
-	zlog "github.com/rs/zerolog/log"
-	"github.com/weisdd/lfgw/internal/querymodifier"
-	"go.uber.org/automaxprocs/maxprocs"
+	"github.com/urfave/cli/v2"
+	"github.com/weisdd/lfgw/internal/gw"
+
+	"fmt"
+	"os"
 )
 
-// Define an application struct to hold the application-wide dependencies for the
-// web application.
-type application struct {
-	errorLog                *log.Logger
-	logger                  *zerolog.Logger
-	ACLs                    querymodifier.ACLs
-	proxy                   *httputil.ReverseProxy
-	verifier                *oidc.IDTokenVerifier
-	Debug                   bool          `env:"DEBUG" envDefault:"false"`
-	LogFormat               string        `env:"LOG_FORMAT" envDefault:"pretty"`
-	LogRequests             bool          `env:"LOG_REQUESTS" envDefault:"false"`
-	LogNoColor              bool          `env:"LOG_NO_COLOR" envDefault:"false"`
-	UpstreamURL             *url.URL      `env:"UPSTREAM_URL,required"`
-	OptimizeExpressions     bool          `env:"OPTIMIZE_EXPRESSIONS" envDefault:"true"`
-	EnableDeduplication     bool          `env:"ENABLE_DEDUPLICATION" envDefault:"true"`
-	SafeMode                bool          `env:"SAFE_MODE" envDefault:"true"`
-	SetProxyHeaders         bool          `env:"SET_PROXY_HEADERS" envDefault:"false"`
-	SetGomaxProcs           bool          `env:"SET_GOMAXPROCS" envDefault:"true"`
-	ACLPath                 string        `env:"ACL_PATH" envDefault:"./acl.yaml"`
-	AssumedRolesEnabled     bool          `env:"ASSUMED_ROLES" envDefault:"false"`
-	OIDCRealmURL            string        `env:"OIDC_REALM_URL,required"`
-	OIDCClientID            string        `env:"OIDC_CLIENT_ID,required"`
-	Port                    int           `env:"PORT" envDefault:"8080"`
-	ReadTimeout             time.Duration `env:"READ_TIMEOUT" envDefault:"10s"`
-	WriteTimeout            time.Duration `env:"WRITE_TIMEOUT" envDefault:"10s"`
-	GracefulShutdownTimeout time.Duration `env:"GRACEFUL_SHUTDOWN_TIMEOUT" envDefault:"20s"`
-}
-
-type contextKey string
-
-const contextKeyACL = contextKey("acl")
-
 func main() {
-	zlog.Logger = zlog.Output(os.Stdout)
-
-	logWrapper := stdErrorLogWrapper{logger: &zlog.Logger}
-	// NOTE: don't delete log.Lshortfile
-	errorLog := log.New(logWrapper, "", log.Lshortfile)
-
-	app := &application{
-		logger:   &zlog.Logger,
-		errorLog: errorLog,
+	app := &cli.App{
+		Name: "lfgw",
+		// TODO: take from a variable
+		// Version:  "v0.1.0",
+		// Compiled: time.Now(),
+		Authors: []*cli.Author{
+			{
+				Name: "weisdd",
+			},
+		},
+		Copyright: "© 2021-2022 weisdd",
+		HelpName:  "lfgw",
+		Usage:     "A reverse proxy aimed at PromQL / MetricsQL metrics filtering based on OIDC roles",
+		UsageText: "lfgw [flags]",
+		// UseShortOptionHandling: true,
+		// EnableBashCompletion:   true,
+		// HideHelpCommand:        true,
+		Action: gw.Run,
+		// TODO: reorder
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:     "debug",
+				Usage:    "whether to print out debug log messages",
+				EnvVars:  []string{"DEBUG"},
+				Value:    false,
+				Required: false,
+			},
+			&cli.StringFlag{
+				Name:     "log-format",
+				Usage:    "log format: pretty, json",
+				EnvVars:  []string{"LOG_FORMAT"},
+				Value:    "pretty",
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "log-no-color",
+				Usage:    "whether to disable colors for pretty format",
+				EnvVars:  []string{"LOG_NO_COLOR"},
+				Value:    false,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "log-requests",
+				Usage:    "whether to log HTTP requests",
+				EnvVars:  []string{"LOG_REQUESTS"},
+				Value:    false,
+				Required: false,
+			},
+			// TODO: will need to convert to *url.URL!
+			&cli.StringFlag{
+				Name:     "upstream-url",
+				Usage:    "Prometheus URL, e.g. http://prometheus.microk8s.localhost",
+				EnvVars:  []string{"UPSTREAM_URL"},
+				Required: true,
+			},
+			&cli.BoolFlag{
+				Name:     "optimize-expressions",
+				Usage:    "whether to automatically optimize expressions for non-full access requests",
+				EnvVars:  []string{"OPTIMIZE_EXPRESSIONS"},
+				Value:    true,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "enable-deduplication",
+				Usage:    "whether to enable deduplication, which leaves some of the requests unmodified if they match the target policy",
+				EnvVars:  []string{"ENABLE_DEDUPLICATION"},
+				Value:    true,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "safe-mode",
+				Usage:    "whether to block requests to sensitive endpoints (tsdb admin, insert)",
+				EnvVars:  []string{"SAFE_MODE"},
+				Value:    true,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "set-proxy-headers",
+				Usage:    "whether to set proxy headers (X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host)",
+				EnvVars:  []string{"SET_PROXY_HEADERS"},
+				Value:    false,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "set-gomax-procs",
+				Usage:    "automatically set GOMAXPROCS to match Linux container CPU quota",
+				EnvVars:  []string{"SET_GOMAXPROCS"},
+				Value:    true,
+				Required: false,
+			},
+			&cli.StringFlag{
+				Name:     "acl-path",
+				Usage:    "path to a file with ACL definitions (OIDC role to namespace bindings), skipped if empty",
+				EnvVars:  []string{"ACL_PATH"},
+				Value:    "./acl.yaml",
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "assumed-roles",
+				Usage:    "whether to treat unknown OIDC-role names as acl definitions",
+				EnvVars:  []string{"ASSUMED_ROLES"},
+				Value:    false,
+				Required: false,
+			},
+			&cli.StringFlag{
+				Name:     "oidc-realm-url",
+				Usage:    "OIDC Realm URL, e.g. `https://auth.microk8s.localhost/auth/realms/cicd",
+				EnvVars:  []string{"OIDC_REALM_URL"},
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "oidc-client-id",
+				Usage:    "OIDC Client ID (used for token audience validation)",
+				EnvVars:  []string{"OIDC_CLIENT_ID"},
+				Required: true,
+			},
+			&cli.IntFlag{
+				Name:     "port",
+				Usage:    "port the web server will listen on",
+				EnvVars:  []string{"PORT"},
+				Value:    8080,
+				Required: false,
+			},
+			// TODO: check duration is correct by pressing Ctrl+C
+			&cli.DurationFlag{
+				Name:     "read-timeout",
+				Usage:    "the maximum time the from when the connection is accepted to when the request body is fully read",
+				EnvVars:  []string{"READ_TIMEOUT"},
+				Value:    10 * time.Second,
+				Required: false,
+			},
+			&cli.DurationFlag{
+				Name:     "write-timeout",
+				Usage:    "the maximum time from the end of the request header read to the end of the response write",
+				EnvVars:  []string{"WRITE_TIMEOUT"},
+				Value:    10 * time.Second,
+				Required: false,
+			},
+			&cli.DurationFlag{
+				Name:     "graceful-shutdown-timeout",
+				Usage:    "the maximum amount of time to wait for all connections to be closed",
+				EnvVars:  []string{"GRACEFUL_SHUTDOWN_TIMEOUT"},
+				Value:    20 * time.Second,
+				Required: false,
+			},
+		},
 	}
 
-	zerolog.CallerMarshalFunc = app.lshortfile
-	zerolog.DurationFieldUnit = time.Second
-
-	err := env.Parse(app)
+	err := app.Run(os.Args)
 	if err != nil {
-		app.logger.Fatal().Caller().
-			Err(err).Msg("")
-	}
-
-	// TODO: think of something better?
-	if app.LogFormat == "pretty" {
-		zlog.Logger = zlog.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: app.LogNoColor})
-	}
-
-	if app.Debug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
-
-	if app.SetGomaxProcs {
-		undo, err := maxprocs.Set()
-		defer undo()
-		if err != nil {
-			app.logger.Error().Caller().
-				Msgf("failed to set GOMAXPROCS: %v", err)
-		}
-	}
-	app.logger.Info().Caller().
-		Msgf("Runtime settings: GOMAXPROCS = %d", runtime.GOMAXPROCS(0))
-
-	if app.AssumedRolesEnabled {
-		app.logger.Info().Caller().
-			Msg("Assumed roles mode is on")
-	} else {
-		app.logger.Info().Caller().
-			Msg("Assumed roles mode is off")
-	}
-
-	if app.ACLPath != "" {
-		app.ACLs, err = querymodifier.NewACLsFromFile(app.ACLPath)
-		if err != nil {
-			app.logger.Fatal().Caller().
-				Err(err).Msgf("Failed to load ACL")
-		}
-
-		for role, acl := range app.ACLs {
-			app.logger.Info().Caller().
-				Msgf("Loaded role definition for %s: %q (converted to %s)", role, acl.RawACL, acl.LabelFilter.AppendString(nil))
-		}
-	} else {
-		if !app.AssumedRolesEnabled {
-			app.logger.Fatal().Caller().
-				Msgf("The app cannot run without at least one source of configuration (Non-empty ACL_PATH and/or ASSUMED_ROLES set to true)")
-		}
-
-		app.logger.Info().Caller().
-			Msgf("ACL_PATH is empty, thus predefined roles are not loaded")
-	}
-
-	app.logger.Info().Caller().
-		Msgf("Connecting to OIDC backend (%q)", app.OIDCRealmURL)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	provider, err := oidc.NewProvider(ctx, app.OIDCRealmURL)
-	if err != nil {
-		app.logger.Fatal().Caller().
-			Err(err).Msg("")
-	}
-
-	oidcConfig := &oidc.Config{
-		ClientID: app.OIDCClientID,
-	}
-	app.verifier = provider.Verifier(oidcConfig)
-
-	app.proxy = httputil.NewSingleHostReverseProxy(app.UpstreamURL)
-	// TODO: somehow pass more context to ErrorLog (unsafe?)
-	app.proxy.ErrorLog = app.errorLog
-	app.proxy.FlushInterval = time.Millisecond * 200
-
-	err = app.serve()
-	if err != nil {
-		app.logger.Fatal().Caller().
-			Err(err).Msg("")
+		// TODO: fatal?
+		fmt.Printf("%+v: %+v", os.Args[0], err)
 	}
 }

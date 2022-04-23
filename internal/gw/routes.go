@@ -1,4 +1,4 @@
-package main
+package gw
 
 import (
 	"github.com/gorilla/mux"

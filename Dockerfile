@@ -7,8 +7,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=0 \
+    GOOS=linux
 
+# TODO: add those variables to the code
 RUN go install \
     -installsuffix "static" \
     -ldflags "                                          \
