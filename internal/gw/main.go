@@ -132,6 +132,12 @@ func (app *application) Run() {
 				Msgf("Loaded role definition for %s: %q (converted to %s)", role, acl.RawACL, acl.LabelFilter.AppendString(nil))
 		}
 	} else {
+		// NOTE: the condition should never happen as it's filtered out by "Before" functionality of cli, though left just in case
+		if !app.AssumedRolesEnabled {
+			app.logger.Fatal().Caller().
+				Msgf("The app cannot run without at least one source of configuration (Non-empty ACL_PATH and/or ASSUMED_ROLES set to true)")
+		}
+
 		app.logger.Info().Caller().
 			Msgf("ACL_PATH is empty, thus predefined roles are not loaded")
 	}

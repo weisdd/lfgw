@@ -154,7 +154,6 @@ func main() {
 				Value:    8080,
 				Required: false,
 			},
-			// TODO: check duration is correct by pressing Ctrl+C
 			&cli.DurationFlag{
 				Name:     "read-timeout",
 				Usage:    "the maximum time the from when the connection is accepted to when the request body is fully read",
