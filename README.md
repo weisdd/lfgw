@@ -12,7 +12,7 @@ Target setup: `grafana -> lfgw -> Prometheus/VictoriaMetrics`.
 * a user can have multiple roles;
 * support for autoconfiguration in environments, where OIDC-role names match names of namespaces ("assumed roles" mode; thanks to [@aberestyak](https://github.com/aberestyak/) for the idea);
 * [automatic expression optimizations](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) for non-full access requests;
-* support for different headers with access tokens (`X-Forwarded-Access-Token`, `X-Auth-Request-Access-Token`, `Authorization`);
+* support for different headers with access tokens (`Authorization`, `X-Forwarded-Access-Token`, `X-Auth-Request-Access-Token`), which can be useful for [oauth2-proxy](https://github.com/oauth2-proxy/oauth2-proxy) or other tools;
 * requests to both `/api/*` and `/federate` endpoints are protected (=rewritten);
 * requests to sensitive endpoints are blocked by default;
 * compatible with both [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) and [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL).
@@ -110,13 +110,15 @@ Note: a user is free to have multiple roles matching the contents of `acl.yaml`.
 * multiple "limited" roles
   => definitions of all those roles are merged together, and then LFGW generates a new LF. The process is the same as if this meta-definition was loaded through `acl.yaml`.
 
+## Licensing
+
+lfgw code is licensed under MIT, though its dependencies might have other licenses. Please, inspect the modules listed in [go.mod](./go.mod) if needed.
+
 ## TODO
 
 * tests for handlers;
 * improve naming;
 * log slow requests;
 * metrics;
-* add CLI interface (currently, only environment variables are used);
-* configurable JMESPath for the `roles` attribute;
 * OIDC callback to support for proxying Prometheus web-interface itself;
 * add a helm chart.

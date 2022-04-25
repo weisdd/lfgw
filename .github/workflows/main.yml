@@ -52,3 +52,6 @@ jobs:
         with:
           push: ${{ github.actor == 'weisdd' }}
           tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            COMMIT=${{ github.sha }}
+            VERSION=${{ steps.meta.outputs.version }}

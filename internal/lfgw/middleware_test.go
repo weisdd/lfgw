@@ -1,4 +1,4 @@
-package main
+package lfgw
 
 import (
 	"net/http"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSafeModeMiddleware(t *testing.T) {
+func Test_safeModeMiddleware(t *testing.T) {
 	tests := []struct {
 		name     string
 		path     string

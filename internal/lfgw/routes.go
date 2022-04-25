@@ -1,4 +1,4 @@
-package main
+package lfgw
 
 import (
 	"github.com/gorilla/mux"

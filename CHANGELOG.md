@@ -1,9 +1,15 @@
 # CHANGELOG
 
+## 0.12.0
+
+- Key changes:
+  - Migrated to urfave CLI;
+  - `VictoriaMetrics/metricsql` bumped from `0.41.0` to `0.42.0`.
+
 ## 0.11.3
 
 - Key changes:
-  - Fixed deduplication for negative non-regexp filters (previously, those would be let through without request modifications);
+  - Fixed deduplication for negative non-regexp filters (previously, some of those would be let through without request modifications);
   - Internal refactoring:
     - Moved acl + lf logic to a new internal package `querymodifier`;
   - Added more tests.
