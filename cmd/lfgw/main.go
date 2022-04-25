@@ -18,10 +18,8 @@ var (
 
 func main() {
 	app := &cli.App{
-		Name: "lfgw",
-		// TODO: pass value through Dockerfile
-		Version: fmt.Sprintf("%s (commit: %s; runtime: %s)", version, commit, goVersion),
-		// TODO: can't find where it's printed
+		Name:     "lfgw",
+		Version:  fmt.Sprintf("%s (commit: %s; runtime: %s)", version, commit, goVersion),
 		Compiled: time.Now(),
 		Authors: []*cli.Author{
 			{
