@@ -11,7 +11,6 @@ COPY . .
 ENV CGO_ENABLED=0 \
     GOOS=linux
 
-# TODO: add those variables to the code
 RUN go install \
     -installsuffix "static" \
     -ldflags "                                          \

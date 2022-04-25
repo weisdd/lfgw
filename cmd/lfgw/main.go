@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/urfave/cli/v2"
-	"github.com/weisdd/lfgw/internal/gw"
+	"github.com/weisdd/lfgw/internal/lfgw"
 
 	"fmt"
 	"os"
@@ -35,7 +35,7 @@ func main() {
 		// UseShortOptionHandling: true,
 		// EnableBashCompletion:   true,
 		HideHelpCommand: true,
-		Action:          gw.Run,
+		Action:          lfgw.Run,
 		Before: func(c *cli.Context) error {
 			nonEmptyStrings := []string{"upstream-url", "oidc-realm-url", "oidc-client-id"}
 
