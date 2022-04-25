@@ -1,5 +1,6 @@
 FROM golang:1.18.1-alpine3.15 as builder
 
+ARG COMMIT
 ARG VERSION
 
 WORKDIR /go/src/lfgw/
@@ -14,10 +15,9 @@ ENV CGO_ENABLED=0 \
 RUN go install \
     -installsuffix "static" \
     -ldflags "                                          \
-      -X main.Version=${VERSION}                        \
-      -X main.GoVersion=$(go version | cut -d " " -f 3) \
-      -X main.Compiler=$(go env CC)                     \
-      -X main.Platform=$(go env GOOS)/$(go env GOARCH) \
+      -X main.commit=${COMMIT}                        \
+      -X main.version=${VERSION}                        \
+      -X main.goVersion=$(go version | cut -d " " -f 3) \
     " \
     ./...
 

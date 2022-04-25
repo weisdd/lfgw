@@ -13,6 +13,10 @@ import (
 	"github.com/weisdd/lfgw/internal/querymodifier"
 )
 
+type contextKey string
+
+const contextKeyACL = contextKey("acl")
+
 // nonProxiedEndpointsMiddleware is a workaround to support healthz and metrics endpoints while forwarding everything else to an upstream.
 func (app *application) nonProxiedEndpointsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -11,15 +11,16 @@ import (
 )
 
 var (
-	version = "dev"
-	commit  = "none"
+	commit    = "none"
+	goVersion = "unknown"
+	version   = "dev"
 )
 
 func main() {
 	app := &cli.App{
 		Name: "lfgw",
 		// TODO: pass value through Dockerfile
-		Version: fmt.Sprintf("%s (commit: %s)", version, commit),
+		Version: fmt.Sprintf("%s (commit: %s; runtime: %s)", version, commit, goVersion),
 		// TODO: can't find where it's printed
 		Compiled: time.Now(),
 		Authors: []*cli.Author{
@@ -50,8 +51,74 @@ func main() {
 
 			return nil
 		},
-		// TODO: reorder
 		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "upstream-url",
+				Usage:    "Prometheus URL, e.g. http://prometheus.microk8s.localhost",
+				EnvVars:  []string{"UPSTREAM_URL"},
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "oidc-realm-url",
+				Usage:    "OIDC Realm URL, e.g. `https://auth.microk8s.localhost/auth/realms/cicd",
+				EnvVars:  []string{"OIDC_REALM_URL"},
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "oidc-client-id",
+				Usage:    "OIDC Client ID (used for token audience validation)",
+				EnvVars:  []string{"OIDC_CLIENT_ID"},
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "acl-path",
+				Usage:    "path to a file with ACL definitions (OIDC role to namespace bindings), skipped if empty",
+				EnvVars:  []string{"ACL_PATH"},
+				Value:    "./acl.yaml",
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "assumed-roles",
+				Usage:    "whether to treat unknown OIDC-role names as acl definitions (also known as autoconfiguration)",
+				EnvVars:  []string{"ASSUMED_ROLES"},
+				Value:    false,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "enable-deduplication",
+				Usage:    "whether to enable deduplication, which leaves some of the requests unmodified if they match the target policy",
+				EnvVars:  []string{"ENABLE_DEDUPLICATION"},
+				Value:    true,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "optimize-expressions",
+				Usage:    "whether to automatically optimize expressions for non-full access requests",
+				EnvVars:  []string{"OPTIMIZE_EXPRESSIONS"},
+				Value:    true,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "safe-mode",
+				Usage:    "whether to block requests to sensitive endpoints (tsdb admin, insert)",
+				EnvVars:  []string{"SAFE_MODE"},
+				Value:    true,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "set-proxy-headers",
+				Usage:    "whether to set proxy headers (X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host)",
+				EnvVars:  []string{"SET_PROXY_HEADERS"},
+				Value:    false,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "set-gomax-procs",
+				Usage:    "automatically set GOMAXPROCS to match Linux container CPU quota",
+				EnvVars:  []string{"SET_GOMAXPROCS"},
+				Value:    true,
+				Required: false,
+			},
 			&cli.BoolFlag{
 				Name:     "debug",
 				Usage:    "whether to print out debug log messages",
@@ -79,73 +146,6 @@ func main() {
 				EnvVars:  []string{"LOG_REQUESTS"},
 				Value:    false,
 				Required: false,
-			},
-			&cli.StringFlag{
-				Name:     "upstream-url",
-				Usage:    "Prometheus URL, e.g. http://prometheus.microk8s.localhost",
-				EnvVars:  []string{"UPSTREAM_URL"},
-				Required: true,
-			},
-			&cli.BoolFlag{
-				Name:     "optimize-expressions",
-				Usage:    "whether to automatically optimize expressions for non-full access requests",
-				EnvVars:  []string{"OPTIMIZE_EXPRESSIONS"},
-				Value:    true,
-				Required: false,
-			},
-			&cli.BoolFlag{
-				Name:     "enable-deduplication",
-				Usage:    "whether to enable deduplication, which leaves some of the requests unmodified if they match the target policy",
-				EnvVars:  []string{"ENABLE_DEDUPLICATION"},
-				Value:    true,
-				Required: false,
-			},
-			&cli.BoolFlag{
-				Name:     "safe-mode",
-				Usage:    "whether to block requests to sensitive endpoints (tsdb admin, insert)",
-				EnvVars:  []string{"SAFE_MODE"},
-				Value:    true,
-				Required: false,
-			},
-			&cli.BoolFlag{
-				Name:     "set-proxy-headers",
-				Usage:    "whether to set proxy headers (X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host)",
-				EnvVars:  []string{"SET_PROXY_HEADERS"},
-				Value:    false,
-				Required: false,
-			},
-			&cli.BoolFlag{
-				Name:     "set-gomax-procs",
-				Usage:    "automatically set GOMAXPROCS to match Linux container CPU quota",
-				EnvVars:  []string{"SET_GOMAXPROCS"},
-				Value:    true,
-				Required: false,
-			},
-			&cli.StringFlag{
-				Name:     "acl-path",
-				Usage:    "path to a file with ACL definitions (OIDC role to namespace bindings), skipped if empty",
-				EnvVars:  []string{"ACL_PATH"},
-				Value:    "./acl.yaml",
-				Required: false,
-			},
-			&cli.BoolFlag{
-				Name:     "assumed-roles",
-				Usage:    "whether to treat unknown OIDC-role names as acl definitions",
-				EnvVars:  []string{"ASSUMED_ROLES"},
-				Value:    false,
-				Required: false,
-			},
-			&cli.StringFlag{
-				Name:     "oidc-realm-url",
-				Usage:    "OIDC Realm URL, e.g. `https://auth.microk8s.localhost/auth/realms/cicd",
-				EnvVars:  []string{"OIDC_REALM_URL"},
-				Required: true,
-			},
-			&cli.StringFlag{
-				Name:     "oidc-client-id",
-				Usage:    "OIDC Client ID (used for token audience validation)",
-				EnvVars:  []string{"OIDC_CLIENT_ID"},
-				Required: true,
 			},
 			&cli.IntFlag{
 				Name:     "port",
@@ -180,6 +180,6 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		fmt.Printf("%+v: %+v", os.Args[0], err)
+		fmt.Printf("\n%+v: %+v\n", os.Args[0], err)
 	}
 }

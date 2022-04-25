@@ -16,36 +16,32 @@ import (
 	"go.uber.org/automaxprocs/maxprocs"
 )
 
-type contextKey string
-
-const contextKeyACL = contextKey("acl")
-
 // Define an application struct to hold the application-wide dependencies for the
 // web application.
 type application struct {
-	errorLog                *log.Logger
-	logger                  *zerolog.Logger
-	ACLs                    querymodifier.ACLs
-	proxy                   *httputil.ReverseProxy
-	verifier                *oidc.IDTokenVerifier
+	UpstreamURL             *url.URL
+	OIDCRealmURL            string
+	OIDCClientID            string
+	ACLPath                 string
+	AssumedRolesEnabled     bool
+	EnableDeduplication     bool
+	OptimizeExpressions     bool
+	SafeMode                bool
+	SetProxyHeaders         bool
+	SetGomaxProcs           bool
 	Debug                   bool
 	LogFormat               string
 	LogNoColor              bool
 	LogRequests             bool
-	UpstreamURL             *url.URL
-	OptimizeExpressions     bool
-	EnableDeduplication     bool
-	SafeMode                bool
-	SetProxyHeaders         bool
-	SetGomaxProcs           bool
-	ACLPath                 string
-	AssumedRolesEnabled     bool
-	OIDCRealmURL            string
-	OIDCClientID            string
 	Port                    int
 	ReadTimeout             time.Duration
 	WriteTimeout            time.Duration
 	GracefulShutdownTimeout time.Duration
+	errorLog                *log.Logger
+	ACLs                    querymodifier.ACLs
+	proxy                   *httputil.ReverseProxy
+	verifier                *oidc.IDTokenVerifier
+	logger                  *zerolog.Logger
 }
 
 // newApplication returns application struct built from *cli.Context
@@ -56,20 +52,20 @@ func newApplication(c *cli.Context) (application, error) {
 	}
 
 	app := application{
+		UpstreamURL:             upstreamURL,
+		OIDCRealmURL:            c.String("oidc-realm-url"),
+		OIDCClientID:            c.String("oidc-client-id"),
+		ACLPath:                 c.String("acl-path"),
+		AssumedRolesEnabled:     c.Bool("assumed-roles"),
+		EnableDeduplication:     c.Bool("enable-deduplication"),
+		OptimizeExpressions:     c.Bool("optimize-expressions"),
+		SafeMode:                c.Bool("safe-mode"),
+		SetProxyHeaders:         c.Bool("set-proxy-headers"),
+		SetGomaxProcs:           c.Bool("set-gomax-procs"),
 		Debug:                   c.Bool("debug"),
 		LogFormat:               c.String("log-format"),
 		LogNoColor:              c.Bool("log-no-color"),
 		LogRequests:             c.Bool("log-requests"),
-		UpstreamURL:             upstreamURL,
-		OptimizeExpressions:     c.Bool("optimize-expressions"),
-		EnableDeduplication:     c.Bool("enable-deduplication"),
-		SafeMode:                c.Bool("safe-mode"),
-		SetProxyHeaders:         c.Bool("set-proxy-headers"),
-		SetGomaxProcs:           c.Bool("set-gomax-procs"),
-		ACLPath:                 c.String("acl-path"),
-		AssumedRolesEnabled:     c.Bool("assumed-roles"),
-		OIDCRealmURL:            c.String("oidc-realm-url"),
-		OIDCClientID:            c.String("oidc-client-id"),
 		Port:                    c.Int("port"),
 		ReadTimeout:             c.Duration("read-timeout"),
 		WriteTimeout:            c.Duration("write-timeout"),
@@ -91,8 +87,10 @@ func Run(c *cli.Context) error {
 	return nil
 }
 
-// configureRuntime configures GOMAXPROCS
-func (app *application) configureRuntime() {
+// Run starts lfgw (main-like function)
+func (app *application) Run() {
+	app.configureLogging()
+
 	if app.SetGomaxProcs {
 		undo, err := maxprocs.Set()
 		defer undo()
@@ -103,12 +101,6 @@ func (app *application) configureRuntime() {
 	}
 	app.logger.Info().Caller().
 		Msgf("Runtime settings: GOMAXPROCS = %d", runtime.GOMAXPROCS(0))
-}
-
-// Run starts lfgw (main-like function)
-func (app *application) Run() {
-	app.configureLogging()
-	app.configureRuntime()
 
 	if app.AssumedRolesEnabled {
 		app.logger.Info().Caller().
