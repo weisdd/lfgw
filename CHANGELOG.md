@@ -3,7 +3,8 @@
 ## 0.12.0
 
 - Key changes:
-  - Migrated to urfave CLI.
+  - Migrated to urfave CLI;
+  - `VictoriaMetrics/metricsql` bumped from `0.41.0` to `0.42.0`.
 
 ## 0.11.3
 
