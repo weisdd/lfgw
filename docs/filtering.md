@@ -4,4 +4,4 @@ By default, Grafana works with data sources in a so called [server mode](https:/
 
 In an identity provider such as Keycloak, we can add custom client roles and pass them in, say, `roles` claim (claim name could be different, but lfgw does not currently allow any other name). That's where lfgw comes into play. By tying roles to a list of namespaces (either full names or regexps), we can tell lfgw which metric expressions have to be modified (to reduce the scope) and which are allowed to be passed as is.
 
-When a metric expression is extracted from GET-parameters or a POST-form that Grafana sends, lfgw manipulates `namespace` label in each selector according to an acl. Once it's done, the updated request is forwarded to the Prometheus-like backend. Examples of ACL can be found in [README.md](../README.md#aclyaml-syntax).
+When a metric expression is extracted from GET-parameters or a POST-form that Grafana sends, lfgw manipulates `namespace` label in each selector according to an ACL. Once it's done, the updated request is forwarded to the Prometheus-like backend. Examples of ACL can be found in [README.md](../README.md#aclyaml-syntax).
