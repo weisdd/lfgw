@@ -18,9 +18,8 @@ var (
 
 func main() {
 	app := &cli.App{
-		Name:     "lfgw",
-		Version:  fmt.Sprintf("%s (commit: %s; runtime: %s)", version, commit, goVersion),
-		Compiled: time.Now(),
+		Name:    "lfgw",
+		Version: fmt.Sprintf("%s (commit: %s; runtime: %s)", version, commit, goVersion),
 		Authors: []*cli.Author{
 			{
 				Name: "weisdd",
