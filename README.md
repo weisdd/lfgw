@@ -2,7 +2,7 @@
 
 lfgw is a simple reverse proxy aimed at PromQL / MetricsQL metrics filtering based on OIDC roles.
 
-It relies on [VictoriaMetrics/metricsql](https://github.com/VictoriaMetrics/metricsql) for manipulating label filters in metric expressions according to an [ACL](#acl) before a request is proxied to Prometheus/VictoriaMetrics by [httputil](https://pkg.go.dev/net/http/httputil). The process is described in more details [here](docs/filtering.md).
+It relies on [VictoriaMetrics/metricsql](https://github.com/VictoriaMetrics/metricsql) for label filters manipulation in metric expressions (according to an [ACL](#acl)) before a request is proxied to Prometheus/VictoriaMetrics by [httputil](https://pkg.go.dev/net/http/httputil). The process is described in more details [here](docs/filtering.md).
 
 Target setup: `grafana (with OIDC integration) <-> lfgw <-> Prometheus/VictoriaMetrics`.
 
