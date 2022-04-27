@@ -7,7 +7,7 @@ In the examples below, we'll have the following naming:
   - [http://keycloak.localhost](http://keycloak.localhost);
   - [http://grafana.localhost](http://grafana.localhost);
   - [http://prometheus.localhost](http://prometheus.localhost);
-  - [http://lfgw](http://lfgw).
+  - [http://lfgw](http://lfgw);
 - client ID: `grafana`.
 
 ## keycloak
@@ -22,11 +22,11 @@ First, we need to create a Realm for our users:
 
 ### Tokens
 
-By default, grafana and keycloak have different values for session duration. If a session in keycloak expires earlier than in grafana, a refresh token will be revoked, and grafana will fail to obtain a new access token. In this case, grafana will stop adding `Authorization` header to its requests, thus making data source authentication fail until the user logs out and logs in again.
+By default, grafana and keycloak have different values for session duration. If a session in keycloak expires earlier than in grafana, a refresh token will be revoked, and grafana will fail to obtain a new access token. In this case, grafana will silently stop adding `Authorization` header to its requests, thus making data source authentication fail until the user logs out and logs in again.
 
-That's why it's important to tune `SSO Session Idle` and `SSO Session Max ` (`Realm Settings` -> `Tokens`):
+That's why it's important to tune `SSO Session Idle` and `SSO Session Max` (`Realm Settings` -> `Tokens`):
 
-![image-20220427161042712](oidc.assets/image-20220427161042712.png)
+![image-20220427181051466](oidc.assets/image-20220427181051466.png)
 
 NOTE: the particular durations are not set in stone.
 
@@ -38,9 +38,11 @@ Next, we need to create a client (`Clients` -> `Add Client`):
 
 ![image-20220427161123432](oidc.assets/image-20220427161123432.png)
 
-NOTE: `Root URL` does not have to be specified if the same realm is reused across different grafana instances.
+NOTE: It's better not to specify `Root URL` if the same realm is reused across different grafana instances.
 
-In the client's settings (`Clients` -> `grafana`), `Access Type` should be changed to `confidential`
+In the client's settings (`Clients` -> `grafana`), `Access Type` should be changed to `confidential`:
+
+![image-20220427161145312](oidc.assets/image-20220427161145312.png)
 
 and `Valid Redirect URIs` to `http://grafana.localhost/*`:
 
@@ -48,11 +50,9 @@ and `Valid Redirect URIs` to `http://grafana.localhost/*`:
 
 Then press `Save`.
 
-![image-20220427161145312](oidc.assets/image-20220427161145312.png)
-
 #### Credentials
 
-Copy `secret` (`Clients` -> `Credentials`), will be needed for `client_secret` in grafana configuration:
+Copy `secret` (`Clients` -> `Credentials`), it will be needed for `client_secret` in grafana configuration:
 
 ![image-20220427161159283](oidc.assets/image-20220427161159283.png)
 
@@ -74,7 +74,7 @@ Click `Edit` next to `client roles`:
 
 Configure the mapper like on the screenshot below:
 
-![image-20220427161947144](oidc.assets/image-20220427161947144.png)
+![image-20220427181844852](oidc.assets/image-20220427181844852.png)
 
 #### Roles
 
@@ -84,7 +84,7 @@ Now, we need to add some client roles (`Clients` -> `grafana` -> `Roles` -> `Add
 
 ![image-20220427161603039](oidc.assets/image-20220427161603039.png)
 
-#### Test user and role assignments
+#### Users and role assignments
 
 The last step would be to create a user and assign a role to him (`Users` -> `Add user`):
 
@@ -92,15 +92,11 @@ The last step would be to create a user and assign a role to him (`Users` -> `Ad
 
 NOTE: `Email` must always be defined.
 
-Set password (`Users` -> `<username>` -> `Credentials`):
+Set password (`Users` -> `test` -> `Credentials`):
 
 ![image-20220427161720535](oidc.assets/image-20220427161720535.png)
 
-Roles can be assigned here: `Users` -> `<username>` -> `Role Mappings` -> `Client Roles` -> `grafana`:
-
-![image-20220427161747630](oidc.assets/image-20220427161747630.png)
-
-Pick a role and assign it:
+Pick a role and assign it (`Users` -> `test` -> `Role Mappings` -> `Client Roles` -> `grafana`):
 
 ![image-20220427161804675](oidc.assets/image-20220427161804675.png)
 
@@ -111,7 +107,7 @@ There are two sets of roles that you need to have:
 - roles used by grafana itself (`grafana-admin` and `grafana-editor` in this case);
 - roles used by lfgw.
 
-Those roles' names can be the same or different, depending on what you want to achieve. For simplicity of the example, here they have the same names.
+Those roles' names can either be the same or different, depending on what you want to achieve. For simplicity of the example, here they have the same names.
 
 ## grafana
 
@@ -121,11 +117,11 @@ Below, you could find an example of how to configure OIDC integration between ke
 
 ```ini
 [ auth ]
-# Disable the default loging form
+# Disable the default loging form (only OIDC users are allowed to login)
 disable_login_form = true
 # Automatically redirect to Keycloak
 oauth_auto_login = true
-# Redirect users to Keycloak logout page and then back to grafana
+# Redirect users to Keycloak logout page and then back to grafana (if not configured, keycloak session will not end upon logout from grafana)
 signout_redirect_url = http://keycloak.localhost/auth/realms/monitoring/protocol/openid-connect/logout?redirect_uri=http://grafana.localhost
 # The maximum lifetime (duration) an authenticated user can be inactive before being required to login at next visit. Default is 7 days (7d). This setting should be expressed as a duration, e.g. 5m (minutes), 6h (hours), 10d (days), 2w (weeks), 1M (month). The lifetime resets at each successful token rotation (token_rotation_interval_minutes).
 # NOTE: Should be lower than "SSO Session Idle" in Keycloak.
@@ -137,8 +133,11 @@ login_maximum_lifetime_duration = 8h
 [ auth.generic_oauth ]
 enabled = true
 allow_sign_up = true
+# The same client ID as added in Keycloak
 client_id = grafana
+# Client secret copied from Keycloak
 client_secret = aqtmNg0G1hq5EWUu2HEuWJK93leVkBn2
+# Those links point to keycloak URLs tied to our realm (monitoring)
 auth_url = http://keycloak.localhost/auth/realms/monitoring/protocol/openid-connect/auth
 token_url = http://keycloak.localhost/auth/realms/monitoring/protocol/openid-connect/token
 api_url = http://keycloak.localhost/auth/realms/monitoring/protocol/openid-connect/userinfo
@@ -147,11 +146,11 @@ scopes = email profile
 role_attribute_path = "contains(roles[*], 'grafana-admin') && 'Admin' || contains(roles[*], 'grafana-editor') && 'Editor' || 'Viewer'"
 ```
 
-NOTE: If `login_maximum_inactive_lifetime_duration` and `login_maximum_lifetime_duration` are not properly set, then authentication to a data will eventually fail, and a user will be required to logout-login.
+NOTE: If `login_maximum_inactive_lifetime_duration` and `login_maximum_lifetime_duration` are not properly set, then authentication to a data source will eventually fail, and a user will be required to logout-login as a workaround.
 
 ### Data source
 
-Point grafana at a lfgw instance and make sure access token is forwarded (`Forward Oauth Identity`) (available only in `Server` mode) (`Configuration` -> `Data sources` -> `<name>`):
+Point grafana at a lfgw instance and make sure access token is forwarded (`Forward Oauth Identity`, available only in `Server` mode) (`Configuration` -> `Data sources` -> `<name>`):
 
 ![image-20220427163543913](oidc.assets/image-20220427163543913.png)
 
@@ -160,18 +159,18 @@ Point grafana at a lfgw instance and make sure access token is forwarded (`Forwa
 ### Environment variables
 
 ```shell
-# Prometheus / VictoriaMetrics
+# Prometheus / VictoriaMetrics base URL
 export UPSTREAM_URL=http://prometheus.localhost
-# lfgw uses the data exposed there to validate tokens
+# Realm URL, lfgw uses the data exposed there to validate access tokens forwarded by grafana
 export OIDC_REALM_URL=http://keycloak.localhost/auth/realms/monitoring
-# used to validate the Audience (aud) field in a token
+# Used to validate the Audience (aud) field in the tokens
 export OIDC_CLIENT_ID=grafana
 ```
 
-### acl.yaml
+### ACL (acl.yaml)
 
 ```yaml
-# Gives full access
+# Gives full access to metrics
 grafana-admin: .*
 # Gives access only for metrics from these namespaces
 grafana-editor: ku.*, min.*, monitoring
@@ -179,7 +178,7 @@ grafana-editor: ku.*, min.*, monitoring
 
 The ACL definitions are, essentially, role to namespace bindings.
 
-If "assumed roles" (autoconfiguration) functionality is enabled, then unknown roles will be treated as ACL definitions. E.g. a role `.*` will give access to all metrics, `monitoring` - to those collected in the `monitoring` namespace.
+If "assumed roles" (autoconfiguration) functionality is enabled (`export ASSUMED_ROLES=true`), then unknown roles will be treated as ACL definitions. E.g. a role `.*` will give access to all metrics, `monitoring` - to those collected in the `monitoring` namespace.
 
 You can have a mix of pre-defined roles and assumed roles if needed.
 
