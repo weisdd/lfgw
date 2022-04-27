@@ -6,7 +6,8 @@ In the examples below, we'll have the following naming:
 - URLs:
   - [http://keycloak.localhost](http://keycloak.localhost);
   - [http://grafana.localhost](http://grafana.localhost);
-  - [http://prometheus.localhost](http://prometheus.localhost)
+  - [http://prometheus.localhost](http://prometheus.localhost);
+  - [http://lfgw](http://lfgw).
 - client ID: `grafana`.
 
 ## keycloak
@@ -150,9 +151,9 @@ NOTE: If `login_maximum_inactive_lifetime_duration` and `login_maximum_lifetime_
 
 ### Data source
 
-Point grafana at a lfgw instance (`http://255.255.255.254:8080` in this case since it's running outside Kubernetes) and make sure access token is forwarded (`Forward Oauth Identity`) (available only in `Server` mode) (`Configuration` -> `Data sources` -> `<name>`):
+Point grafana at a lfgw instance and make sure access token is forwarded (`Forward Oauth Identity`) (available only in `Server` mode) (`Configuration` -> `Data sources` -> `<name>`):
 
-![image-20220427161852084](oidc.assets/image-20220427161852084.png)
+![image-20220427163543913](oidc.assets/image-20220427163543913.png)
 
 ## lfgw
 
