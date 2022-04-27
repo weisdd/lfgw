@@ -1,10 +1,10 @@
-# Label Filter Gateway (LFGW)
+# Label Filter Gateway (lfgw)
 
-LFGW is a trivial reverse proxy based on `httputil` and `VictoriaMetrics/metricsql` with a purpose of dynamically rewriting requests to Prometheus-like backends.
+lfgw is a simple reverse proxy aimed at PromQL / MetricsQL metrics filtering based on OIDC roles.
 
-More specifically, it manipulates label filters in metric expressions to reduce the scope of metrics exposed to an end user based on user's OIDC-roles. The process is described in more details [here](docs/filtering.md).
+It relies on [VictoriaMetrics/metricsql](https://github.com/VictoriaMetrics/metricsql) for label filters manipulation in metric expressions (according to an [ACL](#acl)) before a request is proxied to Prometheus/VictoriaMetrics by [httputil](https://pkg.go.dev/net/http/httputil). The process is described in more details [here](docs/filtering.md).
 
-Target setup: `grafana -> lfgw -> Prometheus/VictoriaMetrics`.
+Target setup: `grafana (with OIDC integration) <-> lfgw <-> Prometheus/VictoriaMetrics`.
 
 ## Key features
 
@@ -12,7 +12,7 @@ Target setup: `grafana -> lfgw -> Prometheus/VictoriaMetrics`.
 * a user can have multiple roles;
 * support for autoconfiguration in environments, where OIDC-role names match names of namespaces ("assumed roles" mode; thanks to [@aberestyak](https://github.com/aberestyak/) for the idea);
 * [automatic expression optimizations](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) for non-full access requests;
-* support for different headers with access tokens (`Authorization`, `X-Forwarded-Access-Token`, `X-Auth-Request-Access-Token`), which can be useful for [oauth2-proxy](https://github.com/oauth2-proxy/oauth2-proxy) or other tools;
+* support for different headers with access tokens (`Authorization`, `X-Forwarded-Access-Token`, `X-Auth-Request-Access-Token`), which can be useful for tools like [oauth2-proxy](https://github.com/oauth2-proxy/oauth2-proxy);
 * requests to both `/api/*` and `/federate` endpoints are protected (=rewritten);
 * requests to sensitive endpoints are blocked by default;
 * compatible with both [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) and [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL).
@@ -27,6 +27,8 @@ Docker images are published on [ghcr.io/weisdd/lfgw](https://github.com/weisdd/l
 
 ## Configuration
 
+Example of `keycloak + grafana + lfgw` setup is described [here](./docs/oidc.md).
+
 ### Requirements for jwt-tokens
 
 * OIDC-roles must be present in `roles` claim;
@@ -34,41 +36,32 @@ Docker images are published on [ghcr.io/weisdd/lfgw](https://github.com/weisdd/l
 
 ### Environment variables
 
-| Module               | Variable                    | Default Value | Description                                                  |
-| -------------------- | --------------------------- | ------------- | ------------------------------------------------------------ |
-| **General settings** |                             |               |                                                              |
-|                      | `ASSUMED_ROLES`             | `false`       | In environments, where OIDC-role names match names of namespaces, ACLs can be constructed on the fly (e.g. `["role1", "role2"]` will give access to metrics from namespaces `role1` and `role2`). The roles specified in `acl.yaml` are still considered and get merged with assumed roles. Role names may contain regular expressions, including the admin definition `.*`. |
-|                      | `ENABLE_DEDUPLICATION`      | `true`        | Whether to enable deduplication, which leaves some of the requests unmodified if they match the target policy. Examples can be found in the "acl.yaml syntax" section. |
-|                      | `OPTIMIZE_EXPRESSIONS`      | `true`        | Whether to automatically optimize expressions for non-full access requests. [More details](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) |
-|                      | `SET_GOMAXPROCS`            | `true`        | Automatically set `GOMAXPROCS` to match Linux container CPU quota. |
-|                      |                             |               |                                                              |
-| **Logging**          |                             |               |                                                              |
-|                      | `DEBUG`                     | `false`       | Whether to print out debug log messages.                     |
-|                      | `LOG_FORMAT`                | `pretty`      | Log format (`pretty`, `json`)                                |
-|                      | `LOG_NO_COLOR`              | `false`       | Whether to disable colors for `pretty` format                |
-|                      | `LOG_REQUESTS`              | `false`       | Whether to log HTTP requests                                 |
-|                      |                             |               |                                                              |
-| **HTTP Server**      |                             |               |                                                              |
-|                      | `PORT`                      | `8080`        | Port the web server will listen on.                          |
-|                      | `READ_TIMEOUT`              | `10s`         | `ReadTimeout` covers the time from when the connection is accepted to when the request body is fully read (if you do read the body, otherwise to the end of the headers). [More details](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) |
-|                      | `WRITE_TIMEOUT`             | `10s`         | `WriteTimeout` normally covers the time from the end of the request header read to the end of the response write (a.k.a. the lifetime of the ServeHTTP). [More details](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) |
-|                      | `GRACEFUL_SHUTDOWN_TIMEOUT` | `20s`         | Maximum amount of time to wait for all connections to be closed. [More details](https://pkg.go.dev/net/http#Server.Shutdown) |
-|                      |                             |               |                                                              |
-| **Proxy**            |                             |               |                                                              |
-|                      | `UPSTREAM_URL`              |               | Prometheus URL, e.g. `http://prometheus.microk8s.localhost`. |
-|                      | `SAFE_MODE`                 | `true`        | Whether to block requests to sensitive endpoints like `/api/v1/admin/tsdb`, `/api/v1/insert`. |
-|                      | `SET_PROXY_HEADERS`         | `false`       | Whether to set proxy headers (`X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host`). |
-|                      |                             |               |                                                              |
-| **OIDC**             |                             |               |                                                              |
-|                      | `ACL_PATH`                  | `./acl.yaml`  | Path to a file with ACL definitions (OIDC role to namespace bindings). Skipped if `ACL_PATH` is empty (might be useful when autoconfiguration is enabled through `ASSUMED_ROLES=true`). |
-|                      | `OIDC_REALM_URL`            |               | OIDC Realm URL, e.g. `https://auth.microk8s.localhost/auth/realms/cicd` |
-|                      | `OIDC_CLIENT_ID`            |               | OIDC Client ID (1*)                                          |
+| Variable                    | Default Value | Description                                                  |
+| --------------------------- | ------------- | ------------------------------------------------------------ |
+| `UPSTREAM_URL`              |               | Prometheus URL, e.g. `http://prometheus.localhost`. |
+| `OIDC_REALM_URL`            |               | OIDC Realm URL, e.g. `https://keycloak.localhost/auth/realms/monitoring` |
+| `OIDC_CLIENT_ID`            |               | OIDC Client ID (1*)                                          |
+| `ACL_PATH`                  | `./acl.yaml`  | Path to a file with ACL definitions (OIDC role to namespace bindings). Skipped if `ACL_PATH` is empty (might be useful when autoconfiguration is enabled through `ASSUMED_ROLES=true`). |
+| `ASSUMED_ROLES`             | `false`       | In environments, where OIDC-role names match names of namespaces, ACLs can be constructed on the fly (e.g. `["role1", "role2"]` will give access to metrics from namespaces `role1` and `role2`). The roles specified in `acl.yaml` are still considered and get merged with assumed roles. Role names may contain regular expressions, including the admin definition `.*`. |
+| `ENABLE_DEDUPLICATION`      | `true`        | Whether to enable deduplication, which leaves some of the requests unmodified if they match the target policy. Examples can be found in the "acl.yaml syntax" section. |
+| `OPTIMIZE_EXPRESSIONS`      | `true`        | Whether to automatically optimize expressions for non-full access requests. [More details](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) |
+| `SAFE_MODE`                 | `true`        | Whether to block requests to sensitive endpoints like `/api/v1/admin/tsdb`, `/api/v1/insert`. |
+| `SET_PROXY_HEADERS`         | `false`       | Whether to set proxy headers (`X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host`). |
+| `SET_GOMAXPROCS`            | `true`        | Automatically set `GOMAXPROCS` to match Linux container CPU quota. |
+| `DEBUG`                     | `false`       | Whether to print out debug log messages.                     |
+| `LOG_FORMAT`                | `pretty`      | Log format (`pretty`, `json`)                                |
+| `LOG_NO_COLOR`              | `false`       | Whether to disable colors for `pretty` format                |
+| `LOG_REQUESTS`              | `false`       | Whether to log HTTP requests                                 |
+| `PORT`                      | `8080`        | Port the web server will listen on.                          |
+| `READ_TIMEOUT`              | `10s`         | `ReadTimeout` covers the time from when the connection is accepted to when the request body is fully read (if you do read the body, otherwise to the end of the headers). [More details](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) |
+| `WRITE_TIMEOUT`             | `10s`         | `WriteTimeout` normally covers the time from the end of the request header read to the end of the response write (a.k.a. the lifetime of the ServeHTTP). [More details](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) |
+| `GRACEFUL_SHUTDOWN_TIMEOUT` | `20s`         | Maximum amount of time to wait for all connections to be closed. [More details](https://pkg.go.dev/net/http#Server.Shutdown) |
 
-(1*): since it's grafana who obtains jwt-tokens in the first place, the specified client id must also be present in the forwarded token (the `aud` claim). To put it simply, better to use the same client id for both Grafana and LFGW.
+(1*): since it's grafana who obtains jwt-tokens in the first place, the specified client id must also be present in the forwarded token (the `aud` claim).
 
-### acl.yaml syntax
+### ACL
 
-The file with ACL definitions has a simple structure:
+The file with ACL definitions (`./acl.yaml` by default) has a simple structure:
 
 ```yaml
 role: namespace, namespace2
@@ -108,7 +101,7 @@ Note: a user is free to have multiple roles matching the contents of `acl.yaml`.
 * multiple roles, one of which gives full access
   => a prepopulated LF, corresponding to the full access role, is returned;
 * multiple "limited" roles
-  => definitions of all those roles are merged together, and then LFGW generates a new LF. The process is the same as if this meta-definition was loaded through `acl.yaml`.
+  => definitions of all those roles are merged together, and then lfgw generates a new LF. The process is the same as if this meta-definition was loaded through `acl.yaml`.
 
 ## Licensing
 
