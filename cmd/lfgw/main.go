@@ -51,13 +51,13 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "upstream-url",
-				Usage:    "Prometheus URL, e.g. http://prometheus.microk8s.localhost",
+				Usage:    "Prometheus URL, e.g. http://prometheus.localhost",
 				EnvVars:  []string{"UPSTREAM_URL"},
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "oidc-realm-url",
-				Usage:    "OIDC Realm URL, e.g. `https://auth.microk8s.localhost/auth/realms/cicd",
+				Usage:    "OIDC Realm URL, e.g. `https://keycloak.localhost/auth/realms/monitoring",
 				EnvVars:  []string{"OIDC_REALM_URL"},
 				Required: true,
 			},
