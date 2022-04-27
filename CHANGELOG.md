@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.12.1
+
+- Key changes:
+  - Minor changes in CLI help;
+  - Improved docs.
+
 ## 0.12.0
 
 - Key changes:
