@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/VictoriaMetrics/metrics v1.18.1
-	github.com/VictoriaMetrics/metricsql v0.42.0
+	github.com/VictoriaMetrics/metricsql v0.43.0
 	github.com/coreos/go-oidc/v3 v3.1.0
 	github.com/gorilla/mux v1.8.0
 	github.com/rs/zerolog v1.26.1
