@@ -32,7 +32,7 @@ Example of `keycloak + grafana + lfgw` setup is described [here](./docs/oidc.md)
 ### Requirements for jwt-tokens
 
 * OIDC-roles must be present in `roles` claim;
-* Client ID specified via `OIDC_CLIENT_ID` must be present in `aud` claim (more details in [environment variables section](#Environment variables)), otherwise token verification will fail.
+* Client ID specified via `OIDC_CLIENT_ID` must be present in `aud` claim (more details in [environment variables section](#environment-variables)), otherwise token verification will fail.
 
 ### Environment variables
 
@@ -109,7 +109,6 @@ lfgw code is licensed under MIT, though its dependencies might have other licens
 
 ## TODO
 
-* tests for handlers;
 * improve naming;
 * log slow requests;
 * metrics;
