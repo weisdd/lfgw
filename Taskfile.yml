@@ -18,3 +18,9 @@ tasks:
   tidy:
     cmds:
       - go mod tidy
+
+  cov:
+    cmds:
+      - mkdir -p temp
+      - go test -coverprofile=temp/coverage.out ./...
+      - go tool cover -html=temp/coverage.out
