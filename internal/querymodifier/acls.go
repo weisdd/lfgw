@@ -85,9 +85,14 @@ func (a ACLs) GetUserACL(oidcRoles []string, assumedRolesEnabled bool) (ACL, err
 	return acl, nil
 }
 
-// NewACLsFromFile loads ACL from a file
+// NewACLsFromFile loads ACL from a file or returns an empty ACLs instance if path is empty
 func NewACLsFromFile(path string) (ACLs, error) {
 	acls := make(ACLs)
+
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return acls, nil
+	}
 
 	yamlFile, err := os.ReadFile(path)
 	if err != nil {
