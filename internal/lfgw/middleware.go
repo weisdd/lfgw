@@ -110,6 +110,10 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rawAccessToken, err := app.getRawAccessToken(r)
 		if err != nil {
+			// Might produce plenty of error messages, though it will make it much easier to understand why requests are failing
+			hlog.FromRequest(r).Error().Caller().
+				Err(err).Msg("")
+
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}

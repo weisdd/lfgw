@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 0.12.2
+
+- Key changes:
+  - Minor improvements in docs;
+  - Minor improvements in logging;
+  - Added more tests.
+
 ## 0.12.1
 
 - Key changes:
