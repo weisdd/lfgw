@@ -233,6 +233,10 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		// TODO: the field name is slightly misleading, should, probably, be renamed
 		app.enrichDebugLogContext(r, "new_post_params", app.unescapedURLQuery(newPostParams))
 
+		// Workaround to make further r.ParseForm() calls update r.Form and r.PostForm again, might be useful in case there's another middleware before rewriteRequestMiddleware
+		r.Form = nil
+		r.PostForm = nil
+
 		next.ServeHTTP(w, r)
 	})
 }
