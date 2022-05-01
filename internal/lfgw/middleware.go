@@ -162,20 +162,26 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 // rewriteRequestMiddleware rewrites a request before forwarding it to the upstream.
 func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Rewrite request destination
-		r.Host = app.UpstreamURL.Host
-
-		if app.isNotAPIRequest(r.URL.Path) {
-			hlog.FromRequest(r).Debug().Caller().
-				Msg("Not an API request, request is not modified")
-			next.ServeHTTP(w, r)
+		// TODO: rewrite?
+		if app.UpstreamURL == nil {
+			app.serverError(w, r, fmt.Errorf("UpstreamURL is not initialized"))
 			return
 		}
+
+		// Rewrite request destination
+		r.Host = app.UpstreamURL.Host
 
 		acl, ok := r.Context().Value(contextKeyACL).(querymodifier.ACL)
 		if !ok {
 			// Should never happen. It means OIDC middleware hasn't done it's job
 			app.serverError(w, r, fmt.Errorf("ACL is not set in the context"))
+			return
+		}
+
+		if app.isNotAPIRequest(r.URL.Path) {
+			hlog.FromRequest(r).Debug().Caller().
+				Msg("Not an API request, request is not modified")
+			next.ServeHTTP(w, r)
 			return
 		}
 
