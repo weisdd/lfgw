@@ -15,6 +15,9 @@ import (
 	"github.com/weisdd/lfgw/internal/querymodifier"
 )
 
+// TODO: logMiddleware add a test https://go.dev/src/net/http/httputil/reverseproxy_test.go
+// to make sure such errors don't happen: reverseproxy.go:489 >  error="http: proxy error: net/http: HTTP/1.x transport connection broken: http: ContentLength=57 with Body length 0\n"
+
 func Test_safeModeMiddleware(t *testing.T) {
 	tests := []struct {
 		name     string
