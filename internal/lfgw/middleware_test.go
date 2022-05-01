@@ -300,6 +300,8 @@ func Test_rewriteRequestMiddleware(t *testing.T) {
 		defer rs.Body.Close()
 	})
 
+	// TODO: merge GET & POST tests?
+
 	t.Run("API request is modified according to an ACL (GET)", func(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "http://lfgw/api/v1/query?query=kube_pod_info", nil)
 		if err != nil {
@@ -313,15 +315,18 @@ func Test_rewriteRequestMiddleware(t *testing.T) {
 		r = r.WithContext(ctx)
 
 		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// TODO: redundant
 			// Workaround to make r.ParseForm update r.Form and r.PostForm again
 			r.Form = nil
 			r.PostForm = nil
 
-			got, err := url.QueryUnescape(r.URL.RawQuery)
+			err := r.ParseForm()
 			assert.Nil(t, err)
 
-			want := `query=kube_pod_info{namespace="monitoring"}`
+			want := url.Values{
+				"query": {`kube_pod_info{namespace="monitoring"}`},
+			}
+			got := r.Form
+
 			assert.Equal(t, want, got)
 
 			_, _ = w.Write([]byte("OK"))
