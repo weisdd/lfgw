@@ -5,7 +5,8 @@
 - Key changes:
   - Minor improvements in docs;
   - Minor improvements in logging;
-  - Added more tests.
+  - Added more tests;
+  - `VictoriaMetrics/metricsql` bumped from `0.42.0` to `0.43.0`.
 
 ## 0.12.1
 
