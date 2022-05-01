@@ -310,6 +310,12 @@ func TestACL_NewACLsFromFile(t *testing.T) {
 		})
 	}
 
+	t.Run("empty path", func(t *testing.T) {
+		got, err := NewACLsFromFile("")
+		assert.Nil(t, err)
+		assert.Equal(t, ACLs{}, got)
+	})
+
 	t.Run("incorrect ACL", func(t *testing.T) {
 		saveACLToFile(t, f, "test-role:")
 		_, err := NewACLsFromFile(f.Name())

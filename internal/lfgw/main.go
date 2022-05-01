@@ -44,6 +44,18 @@ type application struct {
 	logger                  *zerolog.Logger
 }
 
+// Run is used as an entrypoint for cli
+func Run(c *cli.Context) error {
+	app, err := newApplication(c)
+	if err != nil {
+		return err
+	}
+
+	app.Run()
+
+	return nil
+}
+
 // newApplication returns application struct built from *cli.Context
 func newApplication(c *cli.Context) (application, error) {
 	upstreamURL, err := url.Parse(c.String("upstream-url"))
@@ -75,22 +87,13 @@ func newApplication(c *cli.Context) (application, error) {
 	return app, nil
 }
 
-// Run is used as an entrypoint for cli
-func Run(c *cli.Context) error {
-	app, err := newApplication(c)
-	if err != nil {
-		return err
-	}
-
-	app.Run()
-
-	return nil
-}
-
 // Run starts lfgw (main-like function)
 func (app *application) Run() {
 	app.configureLogging()
+	app.configureACLs()
+	app.configureOIDCVerifier()
 
+	// TODO: expose undo and move to another function?
 	if app.SetGomaxProcs {
 		undo, err := maxprocs.Set()
 		defer undo()
@@ -102,6 +105,20 @@ func (app *application) Run() {
 	app.logger.Info().Caller().
 		Msgf("Runtime settings: GOMAXPROCS = %d", runtime.GOMAXPROCS(0))
 
+	err := app.serve()
+	if err != nil {
+		app.logger.Fatal().Caller().
+			Err(err).Msg("")
+	}
+}
+
+// configureACLs logs assumed roles mode, verifies current ACLs settings (assumed roles, aclpath), loads the ACLs from a file and logs roles if needed
+func (app *application) configureACLs() {
+	// Just to make sure our logging calls are always safe
+	if app.logger == nil {
+		app.configureLogging()
+	}
+
 	if app.AssumedRolesEnabled {
 		app.logger.Info().Caller().
 			Msg("Assumed roles mode is on")
@@ -110,20 +127,7 @@ func (app *application) Run() {
 			Msg("Assumed roles mode is off")
 	}
 
-	var err error
-
-	if app.ACLPath != "" {
-		app.ACLs, err = querymodifier.NewACLsFromFile(app.ACLPath)
-		if err != nil {
-			app.logger.Fatal().Caller().
-				Err(err).Msgf("Failed to load ACL")
-		}
-
-		for role, acl := range app.ACLs {
-			app.logger.Info().Caller().
-				Msgf("Loaded role definition for %s: %q (converted to %s)", role, acl.RawACL, acl.LabelFilter.AppendString(nil))
-		}
-	} else {
+	if app.ACLPath == "" {
 		// NOTE: the condition should never happen as it's filtered out by "Before" functionality of cli, though left just in case
 		if !app.AssumedRolesEnabled {
 			app.logger.Fatal().Caller().
@@ -131,7 +135,30 @@ func (app *application) Run() {
 		}
 
 		app.logger.Info().Caller().
-			Msgf("ACL_PATH is empty, thus predefined roles are not loaded")
+			Msgf("ACL_PATH is empty, thus predefined roles will not be loaded")
+
+		return
+	}
+
+	var err error
+
+	app.ACLs, err = querymodifier.NewACLsFromFile(app.ACLPath)
+	if err != nil {
+		app.logger.Fatal().Caller().
+			Err(err).Msgf("Failed to load ACL")
+	}
+
+	for role, acl := range app.ACLs {
+		app.logger.Info().Caller().
+			Msgf("Loaded role definition for %s: %q (converted to %s)", role, acl.RawACL, acl.LabelFilter.AppendString(nil))
+	}
+}
+
+// configureOIDCVerifier sets up OIDC token verifier by using app.OIDCRealmURL and app.OIDCClientID
+func (app *application) configureOIDCVerifier() {
+	// Just to make sure our logging calls are always safe
+	if app.logger == nil {
+		app.configureLogging()
 	}
 
 	app.logger.Info().Caller().
@@ -149,10 +176,4 @@ func (app *application) Run() {
 		ClientID: app.OIDCClientID,
 	}
 	app.verifier = provider.Verifier(oidcConfig)
-
-	err = app.serve()
-	if err != nil {
-		app.logger.Fatal().Caller().
-			Err(err).Msg("")
-	}
 }

@@ -27,12 +27,12 @@ Docker images are published on [ghcr.io/weisdd/lfgw](https://github.com/weisdd/l
 
 ## Configuration
 
-Example of `keycloak + grafana + lfgw` setup is described [here](./docs/oidc.md).
+Example of `keycloak + grafana + lfgw` setup is described [here](docs/oidc.md).
 
 ### Requirements for jwt-tokens
 
 * OIDC-roles must be present in `roles` claim;
-* Client ID specified via `OIDC_CLIENT_ID` must be present in `aud` claim (more details in [environment variables section](#Environment variables)), otherwise token verification will fail.
+* Client ID specified via `OIDC_CLIENT_ID` must be present in `aud` claim (more details in [environment variables section](#environment-variables)), otherwise token verification will fail.
 
 ### Environment variables
 
@@ -105,11 +105,10 @@ Note: a user is free to have multiple roles matching the contents of `acl.yaml`.
 
 ## Licensing
 
-lfgw code is licensed under MIT, though its dependencies might have other licenses. Please, inspect the modules listed in [go.mod](./go.mod) if needed.
+lfgw code is licensed under MIT, though its dependencies might have other licenses. Please, inspect the modules listed in [go.mod](go.mod) if needed.
 
 ## TODO
 
-* tests for handlers;
 * improve naming;
 * log slow requests;
 * metrics;

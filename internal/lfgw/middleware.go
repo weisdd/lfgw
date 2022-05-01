@@ -55,6 +55,10 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 			// If any of those are empty, they won't get logged
 			app.enrichDebugLogContext(r, "get_params", app.unescapedURLQuery(r.URL.Query().Encode()))
 			app.enrichDebugLogContext(r, "post_params", app.unescapedURLQuery(postForm))
+
+			// Workaround to make further r.ParseForm() calls update r.Form and r.PostForm again, might be useful in case there's another middleware before rewriteRequestMiddleware
+			r.Form = nil
+			r.PostForm = nil
 		}
 
 		if app.LogRequests || app.Debug {
@@ -106,6 +110,10 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rawAccessToken, err := app.getRawAccessToken(r)
 		if err != nil {
+			// Might produce plenty of error messages, though it will make it much easier to understand why requests are failing
+			hlog.FromRequest(r).Error().Caller().
+				Err(err).Msg("")
+
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
 			return
 		}
@@ -158,20 +166,26 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 // rewriteRequestMiddleware rewrites a request before forwarding it to the upstream.
 func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Rewrite request destination
-		r.Host = app.UpstreamURL.Host
-
-		if app.isNotAPIRequest(r.URL.Path) {
-			hlog.FromRequest(r).Debug().Caller().
-				Msg("Not an API request, request is not modified")
-			next.ServeHTTP(w, r)
+		// TODO: rewrite?
+		if app.UpstreamURL == nil {
+			app.serverError(w, r, fmt.Errorf("UpstreamURL is not initialized"))
 			return
 		}
+
+		// Rewrite request destination
+		r.Host = app.UpstreamURL.Host
 
 		acl, ok := r.Context().Value(contextKeyACL).(querymodifier.ACL)
 		if !ok {
 			// Should never happen. It means OIDC middleware hasn't done it's job
 			app.serverError(w, r, fmt.Errorf("ACL is not set in the context"))
+			return
+		}
+
+		if app.isNotAPIRequest(r.URL.Path) {
+			hlog.FromRequest(r).Debug().Caller().
+				Msg("Not an API request, request is not modified")
+			next.ServeHTTP(w, r)
 			return
 		}
 
@@ -218,6 +232,10 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		r.Body = io.NopCloser(newBody)
 		// TODO: the field name is slightly misleading, should, probably, be renamed
 		app.enrichDebugLogContext(r, "new_post_params", app.unescapedURLQuery(newPostParams))
+
+		// Workaround to make further r.ParseForm() calls update r.Form and r.PostForm again, might be useful in case there's another middleware before rewriteRequestMiddleware
+		r.Form = nil
+		r.PostForm = nil
 
 		next.ServeHTTP(w, r)
 	})
