@@ -1,13 +1,18 @@
 package lfgw
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+	"github.com/weisdd/lfgw/internal/querymodifier"
 )
 
 func Test_safeModeMiddleware(t *testing.T) {
@@ -74,6 +79,7 @@ func Test_safeModeMiddleware(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte("OK"))
 			})
@@ -110,6 +116,7 @@ func Test_proxyHeadersMiddleware(t *testing.T) {
 		app := &application{
 			SetProxyHeaders: true,
 		}
+
 		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			for h, want := range headers {
 				got := r.Header.Get(h)
@@ -135,6 +142,7 @@ func Test_proxyHeadersMiddleware(t *testing.T) {
 		app := &application{
 			SetProxyHeaders: false,
 		}
+
 		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			for h := range headers {
 				assert.Empty(t, r.Header.Get(h), fmt.Sprintf("%s must be empty", h))
@@ -155,4 +163,232 @@ func Test_proxyHeadersMiddleware(t *testing.T) {
 		defer rs.Body.Close()
 	})
 
+}
+
+func Test_rewriteRequestMiddleware(t *testing.T) {
+	logger := zerolog.New(nil)
+
+	t.Run("UpstreamURL is not set", func(t *testing.T) {
+		app := &application{
+			logger:      &logger,
+			UpstreamURL: nil,
+		}
+
+		r, err := http.NewRequest(http.MethodGet, "http://lfgw/api/v1/federate", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte("OK"))
+		})
+
+		rr := httptest.NewRecorder()
+		app.rewriteRequestMiddleware(next).ServeHTTP(rr, r)
+		rs := rr.Result()
+
+		got := rs.StatusCode
+		want := http.StatusInternalServerError
+
+		// TODO: check logs for the error message?
+		assert.Equal(t, want, got)
+
+		defer rs.Body.Close()
+	})
+
+	// TODO:rewrite once something is done with app.UpstreamURL
+	upstreamURL, err := url.Parse("http://prometheus")
+	assert.Nil(t, err)
+
+	app := &application{
+		logger:      &logger,
+		UpstreamURL: upstreamURL,
+	}
+
+	t.Run("ACL is not in the context", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "http://lfgw/api/v1/federate", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte("OK"))
+		})
+
+		rr := httptest.NewRecorder()
+		app.rewriteRequestMiddleware(next).ServeHTTP(rr, r)
+		rs := rr.Result()
+
+		got := rs.StatusCode
+		want := http.StatusInternalServerError
+
+		// TODO: check logs for the error message?
+		assert.Equal(t, want, got)
+
+		defer rs.Body.Close()
+	})
+
+	t.Run("Not an API request", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "http://lfgw/fakeapi/v1/query?query=kube_pod_info", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		acl, err := querymodifier.NewACL("monitoring")
+		assert.Nil(t, err)
+
+		ctx := context.WithValue(r.Context(), contextKeyACL, acl)
+		r = r.WithContext(ctx)
+
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got, err := url.QueryUnescape(r.URL.RawQuery)
+			assert.Nil(t, err)
+
+			want := "query=kube_pod_info"
+			assert.Equal(t, want, got)
+
+			_, _ = w.Write([]byte("OK"))
+		})
+
+		rr := httptest.NewRecorder()
+		app.rewriteRequestMiddleware(next).ServeHTTP(rr, r)
+		rs := rr.Result()
+
+		got := rs.StatusCode
+		want := http.StatusOK
+
+		// TODO: check logs for the error message?
+		assert.Equal(t, want, got)
+
+		defer rs.Body.Close()
+	})
+
+	t.Run("User has full access, API request is not modified", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "http://lfgw/api/v1/query?query=kube_pod_info", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		acl, err := querymodifier.NewACL(".*")
+		assert.Nil(t, err)
+
+		ctx := context.WithValue(r.Context(), contextKeyACL, acl)
+		r = r.WithContext(ctx)
+
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got, err := url.QueryUnescape(r.URL.RawQuery)
+			assert.Nil(t, err)
+
+			want := "query=kube_pod_info"
+			assert.Equal(t, want, got)
+
+			_, _ = w.Write([]byte("OK"))
+		})
+
+		rr := httptest.NewRecorder()
+		app.rewriteRequestMiddleware(next).ServeHTTP(rr, r)
+		rs := rr.Result()
+
+		got := rs.StatusCode
+		want := http.StatusOK
+
+		// TODO: check logs for the message?
+		assert.Equal(t, want, got)
+
+		defer rs.Body.Close()
+	})
+
+	t.Run("API request is modified according to an ACL (GET)", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "http://lfgw/api/v1/query?query=kube_pod_info", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		acl, err := querymodifier.NewACL("monitoring")
+		assert.Nil(t, err)
+
+		ctx := context.WithValue(r.Context(), contextKeyACL, acl)
+		r = r.WithContext(ctx)
+
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// TODO: redundant
+			// Workaround to make r.ParseForm update r.Form and r.PostForm again
+			r.Form = nil
+			r.PostForm = nil
+
+			got, err := url.QueryUnescape(r.URL.RawQuery)
+			assert.Nil(t, err)
+
+			want := `query=kube_pod_info{namespace="monitoring"}`
+			assert.Equal(t, want, got)
+
+			_, _ = w.Write([]byte("OK"))
+		})
+
+		rr := httptest.NewRecorder()
+		app.rewriteRequestMiddleware(next).ServeHTTP(rr, r)
+		rs := rr.Result()
+
+		got := rs.StatusCode
+		want := http.StatusOK
+
+		// TODO: check logs for the error message?
+		assert.Equal(t, want, got)
+
+		defer rs.Body.Close()
+	})
+
+	t.Run("API request is modified according to an ACL (POST)", func(t *testing.T) {
+		body := io.NopCloser(strings.NewReader("query=kube_pod_info"))
+
+		r, err := http.NewRequest(http.MethodPost, "http://lfgw/api/v1/query", body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Requests of a different type are not decoded by r.ParseForm()
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		acl, err := querymodifier.NewACL("monitoring")
+		assert.Nil(t, err)
+
+		ctx := context.WithValue(r.Context(), contextKeyACL, acl)
+		r = r.WithContext(ctx)
+
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Workaround to make r.ParseForm update r.Form and r.PostForm again
+			r.Form = nil
+			r.PostForm = nil
+
+			err := r.ParseForm()
+			assert.Nil(t, err)
+
+			want := url.Values{
+				"query": {`kube_pod_info{namespace="monitoring"}`},
+			}
+			got := r.PostForm
+
+			assert.Equal(t, want, got)
+
+			postForm := r.PostForm.Encode()
+			newBody := strings.NewReader(postForm)
+			r.ContentLength = newBody.Size()
+			r.Body = io.NopCloser(newBody)
+
+			_, _ = w.Write([]byte("OK"))
+		})
+
+		rr := httptest.NewRecorder()
+		app.rewriteRequestMiddleware(next).ServeHTTP(rr, r)
+		rs := rr.Result()
+
+		got := rs.StatusCode
+		want := http.StatusOK
+
+		// TODO: check logs for the error message?
+		assert.Equal(t, want, got)
+
+		defer rs.Body.Close()
+	})
+
+	// TODO: log fields are added (both get / post)
 }
