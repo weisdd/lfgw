@@ -27,7 +27,7 @@ Docker images are published on [ghcr.io/weisdd/lfgw](https://github.com/weisdd/l
 
 ## Configuration
 
-Example of `keycloak + grafana + lfgw` setup is described [here](./docs/oidc.md).
+Example of `keycloak + grafana + lfgw` setup is described [here](docs/oidc.md).
 
 ### Requirements for jwt-tokens
 
@@ -105,7 +105,7 @@ Note: a user is free to have multiple roles matching the contents of `acl.yaml`.
 
 ## Licensing
 
-lfgw code is licensed under MIT, though its dependencies might have other licenses. Please, inspect the modules listed in [go.mod](./go.mod) if needed.
+lfgw code is licensed under MIT, though its dependencies might have other licenses. Please, inspect the modules listed in [go.mod](go.mod) if needed.
 
 ## TODO
 
