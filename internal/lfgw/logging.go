@@ -31,6 +31,7 @@ func (s stdErrorLogWrapper) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// configureLogging configures zerolog and sets the respective fields in the application struct
 func (app *application) configureLogging() {
 	zlog.Logger = zlog.Output(os.Stdout)
 	app.logger = &zlog.Logger

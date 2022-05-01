@@ -112,7 +112,13 @@ func (app *application) Run() {
 	}
 }
 
+// configureACLs logs assumed roles mode, verifies current ACLs settings (assumed roles, aclpath), loads the ACLs from a file and logs roles if needed
 func (app *application) configureACLs() {
+	// Just to make sure our logging calls are always safe
+	if app.logger == nil {
+		app.configureLogging()
+	}
+
 	if app.AssumedRolesEnabled {
 		app.logger.Info().Caller().
 			Msg("Assumed roles mode is on")
@@ -148,7 +154,13 @@ func (app *application) configureACLs() {
 	}
 }
 
+// configureOIDCVerifier sets up OIDC token verifier by using app.OIDCRealmURL and app.OIDCClientID
 func (app *application) configureOIDCVerifier() {
+	// Just to make sure our logging calls are always safe
+	if app.logger == nil {
+		app.configureLogging()
+	}
+
 	app.logger.Info().Caller().
 		Msgf("Connecting to OIDC backend (%q)", app.OIDCRealmURL)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

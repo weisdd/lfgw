@@ -14,6 +14,11 @@ import (
 
 // serve starts a web server and ensures graceful shutdown
 func (app *application) serve() error {
+	// Just to make sure our logging calls are always safe
+	if app.logger == nil {
+		app.configureLogging()
+	}
+
 	app.proxy = httputil.NewSingleHostReverseProxy(app.UpstreamURL)
 	// TODO: somehow pass more context to ErrorLog (unsafe?)
 	app.proxy.ErrorLog = app.errorLog
