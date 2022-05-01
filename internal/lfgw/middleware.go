@@ -55,6 +55,10 @@ func (app *application) logMiddleware(next http.Handler) http.Handler {
 			// If any of those are empty, they won't get logged
 			app.enrichDebugLogContext(r, "get_params", app.unescapedURLQuery(r.URL.Query().Encode()))
 			app.enrichDebugLogContext(r, "post_params", app.unescapedURLQuery(postForm))
+
+			// Workaround to make further r.ParseForm() calls update r.Form and r.PostForm again, might be useful in case there's another middleware before rewriteRequestMiddleware
+			r.Form = nil
+			r.PostForm = nil
 		}
 
 		if app.LogRequests || app.Debug {
