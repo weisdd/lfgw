@@ -1,6 +1,7 @@
 package lfgw
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -69,7 +70,6 @@ func Test_safeModeMiddleware(t *testing.T) {
 				SafeMode: tt.safeMode,
 			}
 
-			rr := httptest.NewRecorder()
 			r, err := http.NewRequest(tt.method, tt.path, nil)
 			if err != nil {
 				t.Fatal(err)
@@ -77,6 +77,8 @@ func Test_safeModeMiddleware(t *testing.T) {
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte("OK"))
 			})
+
+			rr := httptest.NewRecorder()
 			app.safeModeMiddleware(next).ServeHTTP(rr, r)
 			rs := rr.Result()
 			got := rs.StatusCode
@@ -86,4 +88,71 @@ func Test_safeModeMiddleware(t *testing.T) {
 			defer rs.Body.Close()
 		})
 	}
+}
+
+func Test_proxyHeadersMiddleware(t *testing.T) {
+	// Just to hold reference values
+	headers := map[string]string{
+		"X-Forwarded-For":   "1.2.3.4",
+		"X-Forwarded-Proto": "http",
+		"X-Forwarded-Host":  "lfgw",
+	}
+
+	// Set the values that will be used by middleware to set new headers in case app.SetProxyHeaders = true
+	r, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s://lfgw", headers["X-Forwarded-Proto"]), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Header.Set("Host", headers["X-Forwarded-Host"])
+	r.RemoteAddr = headers["X-Forwarded-For"]
+
+	t.Run("Proxy headers are set", func(t *testing.T) {
+		app := &application{
+			SetProxyHeaders: true,
+		}
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for h, want := range headers {
+				got := r.Header.Get(h)
+				assert.Equal(t, want, got, fmt.Sprintf("%s is set to a different value", h))
+			}
+			_, _ = w.Write([]byte("OK"))
+		})
+
+		rr := httptest.NewRecorder()
+		// Better to clone the request to make sure tests don't interfere with each other
+		app.proxyHeadersMiddleware(next).ServeHTTP(rr, r.Clone(r.Context()))
+		rs := rr.Result()
+
+		got := rs.StatusCode
+		want := http.StatusOK
+
+		assert.Equal(t, want, got)
+
+		defer rs.Body.Close()
+	})
+
+	t.Run("Proxy headers are NOT set", func(t *testing.T) {
+		app := &application{
+			SetProxyHeaders: false,
+		}
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for h := range headers {
+				assert.Empty(t, r.Header.Get(h), fmt.Sprintf("%s must be empty", h))
+			}
+			_, _ = w.Write([]byte("OK"))
+		})
+
+		rr := httptest.NewRecorder()
+		// Better to clone the request to make sure tests don't interfere with each other
+		app.proxyHeadersMiddleware(next).ServeHTTP(rr, r.Clone(r.Context()))
+		rs := rr.Result()
+
+		got := rs.StatusCode
+		want := http.StatusOK
+
+		assert.Equal(t, want, got)
+
+		defer rs.Body.Close()
+	})
+
 }
