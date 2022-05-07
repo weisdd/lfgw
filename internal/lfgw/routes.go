@@ -10,7 +10,7 @@ func (app *application) routes() *mux.Router {
 	r := mux.NewRouter()
 	r.Use(app.nonProxiedEndpointsMiddleware)
 	r.Use(hlog.NewHandler(*app.logger))
-	r.Use(app.logMiddleware)
+	r.Use(app.logAndMetricsMiddleware)
 	r.Use(app.oidcModeMiddleware)
 	// Better to keep it here to see user email in logs (for unsafe paths)
 	r.Use(app.safeModeMiddleware)

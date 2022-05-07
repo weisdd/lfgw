@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 0.12.3 (Unreleased)
+
+- Key changes:
+  - Added more metrics:
+    - `requests_total`;
+    - `request_duration_seconds{path="/federate"}`;
+    - `request_duration_seconds{path="/api/v1/query"}`;
+    - `request_duration_seconds{path="/api/v1/query_range"}`;
+  - Added more tests.
+
 ## 0.12.2
 
 - Key changes:
