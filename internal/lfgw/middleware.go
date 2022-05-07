@@ -22,19 +22,20 @@ var federateDuration = metrics.NewSummary(`request_duration_seconds{path="/feder
 var queryDuration = metrics.NewSummary(`request_duration_seconds{path="/api/v1/query"}`)
 var queryRangeDuration = metrics.NewSummary(`request_duration_seconds{path="/api/v1/query_range"}`)
 
+// nonProxiedEndpointsMiddleware is a workaround to support healthz, metrics, and favicon.ico endpoints while forwarding everything else to an upstream.
 func (app *application) nonProxiedEndpointsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/healthz") {
+		switch r.URL.Path {
+		case "/healthz":
 			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("OK"))
 			return
-		}
-
-		if strings.HasPrefix(r.URL.Path, "/metrics") {
+		case "/metrics":
 			metrics.WritePrometheus(w, true)
 			return
+		default:
+			next.ServeHTTP(w, r)
 		}
-
-		next.ServeHTTP(w, r)
 	})
 }
 

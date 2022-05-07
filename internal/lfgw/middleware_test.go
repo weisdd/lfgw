@@ -15,6 +15,72 @@ import (
 	"github.com/weisdd/lfgw/internal/querymodifier"
 )
 
+func Test_nonProxiedEndpointsMiddleware(t *testing.T) {
+	tests := []struct {
+		name            string
+		path            string
+		wantStatusCode  int
+		wantBodyContent string
+	}{
+		{
+			name:            "/healthz",
+			path:            "/healthz",
+			wantStatusCode:  http.StatusOK,
+			wantBodyContent: "OK",
+		},
+		{
+			name:            "/metrics",
+			path:            "/metrics",
+			wantStatusCode:  http.StatusOK,
+			wantBodyContent: "go_gomaxprocs",
+		},
+		{
+			name:            "Any other path",
+			path:            "/",
+			wantStatusCode:  http.StatusNoContent,
+			wantBodyContent: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := zerolog.New(nil)
+			app := &application{
+				logger: &logger,
+			}
+
+			r, err := http.NewRequest(http.MethodGet, tt.path, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNoContent)
+			})
+
+			rr := httptest.NewRecorder()
+			app.nonProxiedEndpointsMiddleware(next).ServeHTTP(rr, r)
+			rs := rr.Result()
+			got := rs.StatusCode
+
+			assert.Equal(t, tt.wantStatusCode, got)
+
+			b, err := io.ReadAll(rs.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tt.wantBodyContent != "" {
+				assert.Contains(t, string(b), tt.wantBodyContent)
+			} else {
+				assert.Empty(t, string(b))
+			}
+
+			defer rs.Body.Close()
+		})
+	}
+}
+
 // TODO: logMiddleware add a test https://go.dev/src/net/http/httputil/reverseproxy_test.go
 // to make sure such errors don't happen: reverseproxy.go:489 >  error="http: proxy error: net/http: HTTP/1.x transport connection broken: http: ContentLength=57 with Body length 0\n"
 
