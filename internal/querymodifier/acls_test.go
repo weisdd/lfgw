@@ -184,7 +184,7 @@ func TestACL_GetUserACL(t *testing.T) {
 		assert.Equal(t, want, got)
 	})
 
-	t.Run("multiple roles, 1 is unknown (assumed roles enabled)", func(t *testing.T) {
+	t.Run("multiple roles, 1 is simple unknown (assumed roles enabled)", func(t *testing.T) {
 		roles := []string{"multiple-values", "single-value", "unknown-role"}
 
 		want := ACL{
@@ -196,6 +196,46 @@ func TestACL_GetUserACL(t *testing.T) {
 				IsNegative: false,
 			},
 			RawACL: "ku.*, min.*, default, unknown-role",
+		}
+
+		got, err := a.GetUserACL(roles, true)
+		assert.Nil(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	// // TODO: Should this be allowed?
+	// t.Run("multiple roles, 1 is piped unknown (assumed roles enabled)", func(t *testing.T) {
+	// 	roles := []string{"multiple-values", "single-value", "unknown-role1|unknown-role2"}
+
+	// 	want := ACL{
+	// 		Fullaccess: false,
+	// 		LabelFilter: metricsql.LabelFilter{
+	// 			Label:      "namespace",
+	// 			Value:      "ku.*|min.*|default|unknown-role1|unknown-role2",
+	// 			IsRegexp:   true,
+	// 			IsNegative: false,
+	// 		},
+	// 		// TODO: should it be left like this? Or better to split?
+	// 		RawACL: "ku.*, min.*, default, unknown-role1|unknown-role2",
+	// 	}
+
+	// 	got, err := a.GetUserACL(roles, true)
+	// 	assert.Nil(t, err)
+	// 	assert.Equal(t, want, got)
+	// })
+
+	t.Run("multiple roles, 1 is compound unknown (assumed roles enabled)", func(t *testing.T) {
+		roles := []string{"multiple-values", "single-value", "unknown-role1, unknown-role2"}
+
+		want := ACL{
+			Fullaccess: false,
+			LabelFilter: metricsql.LabelFilter{
+				Label:      "namespace",
+				Value:      "ku.*|min.*|default|unknown-role1|unknown-role2",
+				IsRegexp:   true,
+				IsNegative: false,
+			},
+			RawACL: "ku.*, min.*, default, unknown-role1, unknown-role2",
 		}
 
 		got, err := a.GetUserACL(roles, true)
