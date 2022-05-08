@@ -61,19 +61,21 @@ func Test_nonProxiedEndpointsMiddleware(t *testing.T) {
 			rr := httptest.NewRecorder()
 			app.nonProxiedEndpointsMiddleware(next).ServeHTTP(rr, r)
 			rs := rr.Result()
-			got := rs.StatusCode
+			gotStatusCode := rs.StatusCode
 
-			assert.Equal(t, tt.wantStatusCode, got)
+			assert.Equal(t, tt.wantStatusCode, gotStatusCode)
 
 			b, err := io.ReadAll(rs.Body)
 			if err != nil {
 				t.Fatal(err)
 			}
 
+			gotBodyContent := string(b)
+
 			if tt.wantBodyContent != "" {
-				assert.Contains(t, string(b), tt.wantBodyContent)
+				assert.Contains(t, gotBodyContent, tt.wantBodyContent)
 			} else {
-				assert.Empty(t, string(b))
+				assert.Empty(t, gotBodyContent)
 			}
 
 			defer rs.Body.Close()
