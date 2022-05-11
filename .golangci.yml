@@ -16,6 +16,8 @@ linters:
     - stylecheck
     - unconvert
     # - unparam
+    - errname
+    - errchkjson
 
 linters-settings:
   gocyclo:

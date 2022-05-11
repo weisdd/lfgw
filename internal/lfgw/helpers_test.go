@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetRawAccessToken(t *testing.T) {
@@ -14,39 +15,29 @@ func TestGetRawAccessToken(t *testing.T) {
 		logger: &logger,
 	}
 
-	tests := []struct {
+	testsWithToken := []struct {
 		name   string
 		header string
-		fail   bool
 		want   string
 	}{
 		{
 			name:   "X-Forwarded-Access-Token",
 			header: "X-Forwarded-Access-Token",
-			fail:   false,
 			want:   "FAKE_TOKEN",
 		},
 		{
 			name:   "X-Auth-Request-Access-Token",
 			header: "X-Auth-Request-Access-Token",
-			fail:   false,
 			want:   "FAKE_TOKEN",
 		},
 		{
 			name:   "Authorization",
 			header: "Authorization",
-			fail:   false,
 			want:   "FAKE_TOKEN",
-		},
-		{
-			name:   "Random header",
-			header: "Random-Header",
-			fail:   true,
-			want:   "",
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tt := range testsWithToken {
 		t.Run(tt.name, func(t *testing.T) {
 			r, err := http.NewRequest(http.MethodGet, "/", nil)
 			if err != nil {
@@ -61,15 +52,39 @@ func TestGetRawAccessToken(t *testing.T) {
 			}
 
 			got, err := app.getRawAccessToken(r)
-			if tt.fail {
-				if err == nil {
-					t.Error("Expected a non-nil error, though got a nil one")
-				}
-			} else {
-				if got != tt.want {
-					t.Errorf("want %s; got %s", tt.want, got)
-				}
+			assert.Nil(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+
+	testsNoToken := []struct {
+		name      string
+		userAgent string
+		want      error
+	}{
+		{
+			name:      "Request from Grafana",
+			userAgent: "Grafana/8.5.0",
+			want:      errNoTokenGrafana,
+		},
+		{
+			name:      "Request from another client",
+			userAgent: "curl/7.81.0",
+			want:      errNoToken,
+		},
+	}
+
+	for _, tt := range testsNoToken {
+		t.Run(tt.name, func(t *testing.T) {
+			r, err := http.NewRequest(http.MethodGet, "/", nil)
+			if err != nil {
+				t.Fatal(err)
 			}
+
+			r.Header.Set("User-Agent", tt.userAgent)
+			got, err := app.getRawAccessToken(r)
+			assert.Empty(t, got)
+			assert.ErrorIs(t, err, tt.want)
 		})
 	}
 }

@@ -2,7 +2,6 @@ package lfgw
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -189,7 +188,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// TODO: rewrite?
 		if app.UpstreamURL == nil {
-			app.serverError(w, r, fmt.Errorf("UpstreamURL is not initialized"))
+			app.serverError(w, r, errUpstreamNotInitialized)
 			return
 		}
 
@@ -199,7 +198,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		acl, ok := r.Context().Value(contextKeyACL).(querymodifier.ACL)
 		if !ok {
 			// Should never happen. It means OIDC middleware hasn't done it's job
-			app.serverError(w, r, fmt.Errorf("ACL is not set in the context"))
+			app.serverError(w, r, errACLNotSetInContext)
 			return
 		}
 
