@@ -43,17 +43,12 @@ func (app *application) getRawAccessToken(r *http.Request) (string, error) {
 		}
 	}
 
-	var err error
-
 	isGrafanaRequest := strings.Contains(strings.ToLower(r.UserAgent()), "grafana")
-
 	if isGrafanaRequest {
-		err = fmt.Errorf("no bearer token found, possible causes: grafana data source is not configured with Forward Oauth Identity option; grafana user sessions are not tuned to live shorter than IDP sessions; malicious requests")
-	} else {
-		err = fmt.Errorf("no bearer token found")
+		return "", errNoTokenGrafana
 	}
 
-	return "", err
+	return "", errNoToken
 }
 
 // isNotAPIRequest returns true if the requested path does not target API or federate endpoints.

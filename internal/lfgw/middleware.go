@@ -2,7 +2,6 @@ package lfgw
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -16,6 +15,11 @@ import (
 type contextKey string
 
 const contextKeyACL = contextKey("acl")
+
+type userClaims struct {
+	Roles []string `json:"roles"`
+	Email string   `json:"email"`
+}
 
 var requestsTotal = metrics.NewCounter("requests_total")
 var federateDuration = metrics.NewSummary(`request_duration_seconds{path="/federate"}`)
@@ -125,10 +129,14 @@ func (app *application) proxyHeadersMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// oidcModeMiddleware verifies a jwt token, and, if valid and authorized,
-// adds a respective label filter to the request context.
-func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
+// oidcMiddleware verifies a jwt token, and, if valid and authorized, adds a respective label filter to the request context.
+func (app *application) oidcMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if app.verifier == nil {
+			app.serverError(w, r, errVerifierNotInitialized)
+			return
+		}
+
 		rawAccessToken, err := app.getRawAccessToken(r)
 		if err != nil {
 			// Might produce plenty of error messages, though it will make it much easier to understand why requests are failing
@@ -149,14 +157,9 @@ func (app *application) oidcModeMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Extract custom claims
-		var claims struct {
-			Roles []string `json:"roles"`
-			Email string   `json:"email"`
-			// Username string   `json:"preferred_username"`
-		}
+		var claims userClaims
 		if err := accessToken.Claims(&claims); err != nil {
-			// Claims not set, bad token
+			// Claims property is not set / unmarshal errors, very unlikely to catch it
 			hlog.FromRequest(r).Error().Caller().
 				Err(err).Msg("")
 			app.clientErrorMessage(w, http.StatusUnauthorized, err)
@@ -189,7 +192,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// TODO: rewrite?
 		if app.UpstreamURL == nil {
-			app.serverError(w, r, fmt.Errorf("UpstreamURL is not initialized"))
+			app.serverError(w, r, errUpstreamNotInitialized)
 			return
 		}
 
@@ -199,7 +202,7 @@ func (app *application) rewriteRequestMiddleware(next http.Handler) http.Handler
 		acl, ok := r.Context().Value(contextKeyACL).(querymodifier.ACL)
 		if !ok {
 			// Should never happen. It means OIDC middleware hasn't done it's job
-			app.serverError(w, r, fmt.Errorf("ACL is not set in the context"))
+			app.serverError(w, r, errACLNotSetInContext)
 			return
 		}
 
