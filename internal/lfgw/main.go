@@ -91,7 +91,11 @@ func newApplication(c *cli.Context) (application, error) {
 func (app *application) Run() {
 	app.configureLogging()
 	app.configureACLs()
-	app.configureOIDCVerifier()
+
+	if err := app.configureOIDCVerifier(); err != nil {
+		app.logger.Fatal().Caller().
+			Err(err).Msg("")
+	}
 
 	// TODO: expose undo and move to another function?
 	if app.SetGomaxProcs {
@@ -155,7 +159,7 @@ func (app *application) configureACLs() {
 }
 
 // configureOIDCVerifier sets up OIDC token verifier by using app.OIDCRealmURL and app.OIDCClientID
-func (app *application) configureOIDCVerifier() {
+func (app *application) configureOIDCVerifier() error {
 	// Just to make sure our logging calls are always safe
 	if app.logger == nil {
 		app.configureLogging()
@@ -168,12 +172,13 @@ func (app *application) configureOIDCVerifier() {
 
 	provider, err := oidc.NewProvider(ctx, app.OIDCRealmURL)
 	if err != nil {
-		app.logger.Fatal().Caller().
-			Err(err).Msg("")
+		return err
 	}
 
 	oidcConfig := &oidc.Config{
 		ClientID: app.OIDCClientID,
 	}
 	app.verifier = provider.Verifier(oidcConfig)
+
+	return nil
 }

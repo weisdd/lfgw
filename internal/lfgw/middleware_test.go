@@ -7,9 +7,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/weisdd/lfgw/internal/querymodifier"
@@ -234,6 +238,242 @@ func Test_proxyHeadersMiddleware(t *testing.T) {
 		defer rs.Body.Close()
 	})
 
+}
+
+func Test_oidcMiddleware(t *testing.T) {
+	// Prepare a test server with mocked IDP
+	ts := oidcIDPServer(t)
+	defer ts.Close()
+
+	clientID := "grafana"
+	issuerURL := ts.URL
+	logger := zerolog.New(nil)
+
+	// appHelper is needed to set up OIDC verifier in the same way as the main app
+	appHelper := application{
+		OIDCRealmURL: issuerURL,
+		OIDCClientID: clientID,
+		logger:       &logger,
+	}
+
+	if err := appHelper.configureOIDCVerifier(); err != nil {
+		t.Fatal(err)
+	}
+
+	verifier := appHelper.verifier
+
+	// A type that will be used for generating token claims
+	type testClaims struct {
+		userClaims
+		jwt.StandardClaims
+	}
+
+	// Prepare ACLs
+	aclAdmin, err := querymodifier.NewACL(".*")
+	assert.Nil(t, err)
+
+	aclEditor, err := querymodifier.NewACL("monitoring")
+	assert.Nil(t, err)
+
+	acls := querymodifier.ACLs{
+		"grafana-admin":  aclAdmin,
+		"grafana-editor": aclEditor,
+	}
+
+	// Some of the reusable test data
+	unknownRole := "unknown-role"
+	unknownEmail := "unknown-email"
+
+	// TODO: check logs for all errors, maybe dump logs
+
+	tests := []struct {
+		name   string
+		app    application
+		claims jwt.Claims
+		want   int
+	}{
+		{
+			name: "Verifier not initialized",
+			app: application{
+				logger:   &logger,
+				ACLs:     acls,
+				verifier: nil,
+			},
+			claims: nil,
+			want:   http.StatusInternalServerError,
+		},
+		{
+			name: "No token",
+			app: application{
+				logger:   &logger,
+				ACLs:     acls,
+				verifier: verifier,
+			},
+			claims: nil,
+			want:   http.StatusUnauthorized,
+		},
+		{
+			name: "Incorrect token: different issuer",
+			app: application{
+				logger:   &logger,
+				ACLs:     acls,
+				verifier: verifier,
+			},
+			claims: jwt.StandardClaims{
+				Audience:  clientID,
+				ExpiresAt: time.Now().Add(time.Minute * 5).Unix(),
+				Issuer:    "http://random-issuer.localhost",
+			},
+			want: http.StatusUnauthorized,
+		},
+		{
+			name: "Incorrect token: expired",
+			app: application{
+				logger:   &logger,
+				ACLs:     acls,
+				verifier: verifier,
+			},
+			claims: jwt.StandardClaims{
+				Audience:  clientID,
+				ExpiresAt: time.Now().Add(-time.Hour * 5).Unix(),
+				Issuer:    issuerURL,
+			},
+			want: http.StatusUnauthorized,
+		},
+		{
+			name: "Incorrect token: different audience",
+			app: application{
+				logger:   &logger,
+				ACLs:     acls,
+				verifier: verifier,
+			},
+			claims: jwt.StandardClaims{
+				Audience:  "random-client-id",
+				ExpiresAt: time.Now().Add(time.Minute * 5).Unix(),
+				Issuer:    issuerURL,
+			},
+			want: http.StatusUnauthorized,
+		},
+		{
+			name: "No known roles, assumed roles disabled",
+			app: application{
+				logger:   &logger,
+				ACLs:     acls,
+				verifier: verifier,
+			},
+			claims: testClaims{
+				userClaims{
+					Roles: []string{unknownRole},
+					Email: unknownEmail,
+				},
+				jwt.StandardClaims{
+					Audience:  clientID,
+					ExpiresAt: time.Now().Add(time.Minute * 5).Unix(),
+					Issuer:    issuerURL,
+				},
+			},
+			want: http.StatusUnauthorized,
+		},
+		{
+			name: "No known roles, assumed roles enabled",
+			app: application{
+				logger:              &logger,
+				AssumedRolesEnabled: true,
+				ACLs:                acls,
+				verifier:            verifier,
+			},
+			claims: testClaims{
+				userClaims{
+					Roles: []string{unknownRole},
+					Email: unknownEmail,
+				},
+				jwt.StandardClaims{
+					Audience:  clientID,
+					ExpiresAt: time.Now().Add(time.Minute * 5).Unix(),
+					Issuer:    issuerURL,
+				},
+			},
+			want: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, err := http.NewRequest(http.MethodGet, "http://lfgw/api/v1/federate", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tt.claims != nil {
+				rawAccessToken := oidcGenerateToken(t, tt.claims)
+				r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", rawAccessToken))
+			}
+
+			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte("OK"))
+			})
+
+			rr := httptest.NewRecorder()
+			tt.app.oidcMiddleware(next).ServeHTTP(rr, r)
+			rs := rr.Result()
+
+			got := rs.StatusCode
+			want := tt.want
+
+			// TODO: check logs for the error message?
+			assert.Equal(t, want, got)
+
+			defer rs.Body.Close()
+		})
+	}
+
+	t.Run("Correct ACL is in the context", func(t *testing.T) {
+		app := application{
+			logger:   &logger,
+			ACLs:     acls,
+			verifier: verifier,
+		}
+
+		r, err := http.NewRequest(http.MethodGet, "http://lfgw/api/v1/federate", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		claims := testClaims{
+			userClaims{
+				Roles: []string{"grafana-editor"},
+				Email: "user@localhost",
+			},
+			jwt.StandardClaims{
+				Audience:  clientID,
+				ExpiresAt: time.Now().Add(time.Minute * 5).Unix(),
+				Issuer:    issuerURL,
+			},
+		}
+
+		rawAccessToken := oidcGenerateToken(t, claims)
+		r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", rawAccessToken))
+
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			acl, ok := r.Context().Value(contextKeyACL).(querymodifier.ACL)
+			assert.True(t, ok, errACLNotSetInContext)
+			assert.Equal(t, acl, aclEditor)
+			_, _ = w.Write([]byte("OK"))
+		})
+
+		rr := httptest.NewRecorder()
+
+		app.oidcMiddleware(next).ServeHTTP(rr, r)
+		rs := rr.Result()
+
+		got := rs.StatusCode
+		want := http.StatusOK
+
+		// TODO: check logs for the error message?
+		assert.Equal(t, want, got)
+
+		defer rs.Body.Close()
+	})
 }
 
 func Test_rewriteRequestMiddleware(t *testing.T) {
@@ -467,4 +707,81 @@ func Test_rewriteRequestMiddleware(t *testing.T) {
 	})
 
 	// TODO: log fields are added (both get / post)
+}
+
+// oidcWellKnownContent returns content for openid-connect/.well-known needed in oidcMiddleware test
+func oidcWellKnownContent(t *testing.T, url string) string {
+	t.Helper()
+
+	return fmt.Sprintf(`{
+		"issuer": "%[1]s",
+		"authorization_endpoint": "%[1]s/protocol/openid-connect/auth",
+		"token_endpoint": "%[1]s/protocol/openid-connect/token",
+		"introspection_endpoint": "%[1]s/protocol/openid-connect/token/introspect",
+		"userinfo_endpoint": "%[1]s/protocol/openid-connect/userinfo",
+		"end_session_endpoint": "%[1]s/protocol/openid-connect/logout",
+		"jwks_uri": "%[1]s/protocol/openid-connect/certs",
+		"id_token_signing_alg_values_supported": [
+			"RS256"
+		]
+	}`, url)
+}
+
+// oidcCertsContent returns certs needed in oidcMiddleware test
+func oidcCertsContent(t *testing.T) []byte {
+	t.Helper()
+
+	certs, err := os.ReadFile("test/certs")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return certs
+}
+
+// oidcCertsContent returns a properly signed token needed in oidcMiddleware test
+func oidcGenerateToken(t *testing.T, c jwt.Claims) string {
+	t.Helper()
+
+	privateKeyBytes, err := os.ReadFile("test/privatekey")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, c)
+	token.Header["kid"] = "Po6hNo0dWOkmViTGxtw3ZkESATbmJcy8ntWxlKSAsW4"
+	rawToken, err := token.SignedString(privateKey)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return rawToken
+}
+
+// oidcIDPServer sets up a test router with mocked IDP
+func oidcIDPServer(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	router := mux.NewRouter()
+
+	ts := httptest.NewServer(router)
+	// defer ts.Close()
+
+	router.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintln(w, oidcWellKnownContent(t, ts.URL))
+	})
+
+	router.HandleFunc("/protocol/openid-connect/certs", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(oidcCertsContent(t))
+	})
+
+	return ts
 }

@@ -1,11 +1,14 @@
 package lfgw
 
 import (
+	"context"
 	"flag"
 	"net/url"
 	"testing"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v2"
 )
@@ -138,5 +141,76 @@ func Test_newApplication(t *testing.T) {
 		assert.Nil(t, err)
 
 		assert.Equal(t, want, got)
+	})
+}
+
+func TestApp_configureOIDCVerifier(t *testing.T) {
+	// Prepare a test server with mocked IDP
+	ts := oidcIDPServer(t)
+	defer ts.Close()
+
+	// TODO: renamed just to mitigate goconst complains
+	clientID := "testclientid"
+	issuerURL := ts.URL
+	logger := zerolog.New(nil)
+
+	app := application{
+		OIDCRealmURL: issuerURL,
+		OIDCClientID: clientID,
+		logger:       &logger,
+	}
+
+	if err := app.configureOIDCVerifier(); err != nil {
+		t.Fatal(err)
+	}
+
+	// A type that will be used for generating token claims
+	type testClaims struct {
+		userClaims
+		jwt.StandardClaims
+	}
+
+	t.Run("Valid token", func(t *testing.T) {
+		claims := testClaims{
+			userClaims{
+				Roles: []string{"random-role"},
+				Email: "random-email@localhost",
+			},
+			jwt.StandardClaims{
+				Audience:  clientID,
+				ExpiresAt: time.Now().Add(time.Minute * 5).Unix(),
+				Issuer:    issuerURL,
+			},
+		}
+
+		rawAccessToken := oidcGenerateToken(t, claims)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		_, err := app.verifier.Verify(ctx, rawAccessToken)
+		assert.Nil(t, err)
+	})
+
+	t.Run("Incorrent token", func(t *testing.T) {
+		claims := testClaims{
+			userClaims{
+				Roles: []string{"random-role"},
+				Email: "random-email@localhost",
+			},
+			jwt.StandardClaims{
+				Audience:  clientID,
+				ExpiresAt: time.Now().Add(time.Minute * 5).Unix(),
+				Issuer:    "random-issuer.localhost",
+			},
+		}
+
+		rawAccessToken := oidcGenerateToken(t, claims)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		_, err := app.verifier.Verify(ctx, rawAccessToken)
+		assert.NotNil(t, err)
 	})
 }

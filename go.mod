@@ -6,6 +6,7 @@ require (
 	github.com/VictoriaMetrics/metrics v1.18.1
 	github.com/VictoriaMetrics/metricsql v0.43.0
 	github.com/coreos/go-oidc/v3 v3.2.0
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gorilla/mux v1.8.0
 	github.com/rs/zerolog v1.26.1
 	github.com/stretchr/testify v1.7.1
