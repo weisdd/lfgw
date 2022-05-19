@@ -10,12 +10,13 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/rs/zerolog v1.26.1
 	github.com/stretchr/testify v1.7.1
-	github.com/urfave/cli/v2 v2.6.0
+	github.com/urfave/cli/v2 v2.7.1
 	go.uber.org/automaxprocs v1.5.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
 
 require (
+	github.com/antzucaro/matchr v0.0.0-20210222213004-b04723ef80f0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
