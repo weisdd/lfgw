@@ -20,7 +20,7 @@ type ACL struct {
 
 // NewACL returns an ACL based on a rule definition (non-regexp for one namespace, regexp - for many). .RawACL in the resulting value will contain a normalized value (anchors stripped, implicit admin will have only .*).
 func NewACL(rawACL string) (ACL, error) {
-	var lf = metricsql.LabelFilter{
+	lf := metricsql.LabelFilter{
 		Label:      "namespace",
 		IsNegative: false,
 		IsRegexp:   false,

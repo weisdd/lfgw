@@ -237,7 +237,6 @@ func Test_proxyHeadersMiddleware(t *testing.T) {
 
 		defer rs.Body.Close()
 	})
-
 }
 
 func Test_oidcMiddleware(t *testing.T) {
@@ -756,7 +755,6 @@ func oidcGenerateToken(t *testing.T, c jwt.Claims) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, c)
 	token.Header["kid"] = "Po6hNo0dWOkmViTGxtw3ZkESATbmJcy8ntWxlKSAsW4"
 	rawToken, err := token.SignedString(privateKey)
-
 	if err != nil {
 		t.Fatal(err)
 	}

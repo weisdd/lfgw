@@ -21,10 +21,12 @@ type userClaims struct {
 	Email string   `json:"email"`
 }
 
-var requestsTotal = metrics.NewCounter("requests_total")
-var federateDuration = metrics.NewSummary(`request_duration_seconds{path="/federate"}`)
-var queryDuration = metrics.NewSummary(`request_duration_seconds{path="/api/v1/query"}`)
-var queryRangeDuration = metrics.NewSummary(`request_duration_seconds{path="/api/v1/query_range"}`)
+var (
+	requestsTotal      = metrics.NewCounter("requests_total")
+	federateDuration   = metrics.NewSummary(`request_duration_seconds{path="/federate"}`)
+	queryDuration      = metrics.NewSummary(`request_duration_seconds{path="/api/v1/query"}`)
+	queryRangeDuration = metrics.NewSummary(`request_duration_seconds{path="/api/v1/query_range"}`)
+)
 
 // nonProxiedEndpointsMiddleware is a workaround to support healthz and metrics endpoints while forwarding everything else to an upstream.
 func (app *application) nonProxiedEndpointsMiddleware(next http.Handler) http.Handler {
@@ -95,7 +97,6 @@ func (app *application) logAndMetricsMiddleware(next http.Handler) http.Handler 
 			case "/api/v1/query_range":
 				queryRangeDuration.Update(d)
 			}
-
 		})(next)
 
 		next.ServeHTTP(w, r)

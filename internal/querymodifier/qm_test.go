@@ -879,7 +879,6 @@ func Test_appendOrMergeRegexpLF(t *testing.T) {
 		got := appendOrMergeRegexpLF(filters, newFilter)
 		assert.Equal(t, want, got)
 	})
-
 }
 
 func Test_replaceLFByName(t *testing.T) {
@@ -934,7 +933,6 @@ func Test_replaceLFByName(t *testing.T) {
 		}
 		got := replaceLFByName(filters, newFilter)
 		assert.Equal(t, want, got)
-
 	})
 
 	t.Run("many matching labels", func(t *testing.T) {
