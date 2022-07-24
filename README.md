@@ -38,7 +38,7 @@ Example of `keycloak + grafana + lfgw` setup is described [here](docs/oidc.md).
 
 | Variable                    | Default Value | Description                                                  |
 | --------------------------- | ------------- | ------------------------------------------------------------ |
-| `UPSTREAM_URL`              |               | Prometheus URL, e.g. `http://prometheus.localhost`. |
+| `UPSTREAM_URL`              |               | Prometheus URL, e.g. `http://prometheus.localhost`.          |
 | `OIDC_REALM_URL`            |               | OIDC Realm URL, e.g. `https://keycloak.localhost/auth/realms/monitoring` |
 | `OIDC_CLIENT_ID`            |               | OIDC Client ID (1*)                                          |
 | `ACL_PATH`                  | `./acl.yaml`  | Path to a file with ACL definitions (OIDC role to namespace bindings). Skipped if `ACL_PATH` is empty (might be useful when autoconfiguration is enabled through `ASSUMED_ROLES=true`). |

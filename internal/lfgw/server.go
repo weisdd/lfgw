@@ -25,6 +25,7 @@ func (app *application) serve() error {
 	app.proxy.FlushInterval = time.Millisecond * 200
 
 	// TODO: somehow pass more context to ErrorLog
+	//#nosec G112 -- false positive, may be removed after gosec v2.12.0+ is released
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", app.Port),
 		ErrorLog:     app.errorLog,

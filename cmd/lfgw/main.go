@@ -1,13 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/urfave/cli/v2"
 	"github.com/weisdd/lfgw/internal/lfgw"
-
-	"fmt"
-	"os"
 )
 
 var (
@@ -153,7 +152,7 @@ func main() {
 			},
 			&cli.DurationFlag{
 				Name:     "read-timeout",
-				Usage:    "the maximum time the from when the connection is accepted to when the request body is fully read",
+				Usage:    "the maximum time from when the connection is accepted to when the request body is fully read",
 				EnvVars:  []string{"READ_TIMEOUT"},
 				Value:    10 * time.Second,
 				Required: false,
