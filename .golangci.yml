@@ -1,7 +1,3 @@
-# TODO: remove this section once all linters support go 1.18
-run:
-  go: "1.17"
-
 linters:
   enable:
     - gocritic

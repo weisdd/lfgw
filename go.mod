@@ -1,6 +1,6 @@
 module github.com/weisdd/lfgw
 
-go 1.18
+go 1.19
 
 require (
 	github.com/VictoriaMetrics/metrics v1.22.2
