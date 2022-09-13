@@ -52,7 +52,7 @@ func (app *application) configureLogging() {
 }
 
 // lshortfile implements Lshortfile equivalent for zerolog's CallerMarshalFunc.
-func (app *application) lshortfile(file string, line int) string {
+func (app *application) lshortfile(pc uintptr, file string, line int) string {
 	// Copied from the standard library: https://cs.opensource.google/go/go/+/refs/tags/go1.17.8:src/log/log.go;drc=926994fd7cf65b2703552686965fb05569699897;l=134
 	short := file
 	for i := len(file) - 1; i > 0; i-- {
