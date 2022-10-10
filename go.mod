@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/VictoriaMetrics/metrics v1.22.2
-	github.com/VictoriaMetrics/metricsql v0.44.1
+	github.com/VictoriaMetrics/metricsql v0.45.0
 	github.com/coreos/go-oidc/v3 v3.4.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gorilla/mux v1.8.0
