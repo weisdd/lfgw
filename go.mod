@@ -3,7 +3,7 @@ module github.com/weisdd/lfgw
 go 1.19
 
 require (
-	github.com/VictoriaMetrics/metrics v1.22.2
+	github.com/VictoriaMetrics/metrics v1.23.0
 	github.com/VictoriaMetrics/metricsql v0.45.0
 	github.com/coreos/go-oidc/v3 v3.4.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
