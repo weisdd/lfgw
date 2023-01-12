@@ -36,6 +36,8 @@ Example of `keycloak + grafana + lfgw` setup is described [here](docs/oidc.md).
 
 ### Environment variables
 
+#### Basic settings
+
 | Variable                    | Default Value | Description                                                  |
 | --------------------------- | ------------- | ------------------------------------------------------------ |
 | `UPSTREAM_URL`              |               | Prometheus URL, e.g. `http://prometheus.localhost`.          |
@@ -43,6 +45,13 @@ Example of `keycloak + grafana + lfgw` setup is described [here](docs/oidc.md).
 | `OIDC_CLIENT_ID`            |               | OIDC Client ID (1*)                                          |
 | `ACL_PATH`                  | `./acl.yaml`  | Path to a file with ACL definitions (OIDC role to namespace bindings). Skipped if `ACL_PATH` is empty (might be useful when autoconfiguration is enabled through `ASSUMED_ROLES=true`). |
 | `ASSUMED_ROLES`             | `false`       | In environments, where OIDC-role names match names of namespaces, ACLs can be constructed on the fly (e.g. `["role1", "role2"]` will give access to metrics from namespaces `role1` and `role2`). The roles specified in `acl.yaml` are still considered and get merged with assumed roles. Role names may contain regular expressions, including the admin definition `.*`. |
+
+(1*): since it's grafana who obtains jwt-tokens in the first place, the specified client id must also be present in the forwarded token (the `aud` claim).
+
+#### Additional settings
+
+| Variable                    | Default Value | Description                                                  |
+| --------------------------- | ------------- | ------------------------------------------------------------ |
 | `ENABLE_DEDUPLICATION`      | `true`        | Whether to enable deduplication, which leaves some of the requests unmodified if they match the target policy. Examples can be found in the "acl.yaml syntax" section. |
 | `OPTIMIZE_EXPRESSIONS`      | `true`        | Whether to automatically optimize expressions for non-full access requests. [More details](https://pkg.go.dev/github.com/VictoriaMetrics/metricsql#Optimize) |
 | `SAFE_MODE`                 | `true`        | Whether to block requests to sensitive endpoints like `/api/v1/admin/tsdb`, `/api/v1/insert`. |
@@ -57,9 +66,7 @@ Example of `keycloak + grafana + lfgw` setup is described [here](docs/oidc.md).
 | `WRITE_TIMEOUT`             | `10s`         | `WriteTimeout` normally covers the time from the end of the request header read to the end of the response write (a.k.a. the lifetime of the ServeHTTP). [More details](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) |
 | `GRACEFUL_SHUTDOWN_TIMEOUT` | `20s`         | Maximum amount of time to wait for all connections to be closed. [More details](https://pkg.go.dev/net/http#Server.Shutdown) |
 
-(1*): since it's grafana who obtains jwt-tokens in the first place, the specified client id must also be present in the forwarded token (the `aud` claim).
-
-### ACL
+### ACL syntax
 
 The file with ACL definitions (`./acl.yaml` by default) has a simple structure:
 
@@ -106,11 +113,3 @@ Note: a user is free to have multiple roles matching the contents of `acl.yaml`.
 ## Licensing
 
 lfgw code is licensed under MIT, though its dependencies might have other licenses. Please, inspect the modules listed in [go.mod](go.mod) if needed.
-
-## TODO
-
-* improve naming;
-* log slow requests;
-* metrics;
-* OIDC callback to support for proxying Prometheus web-interface itself;
-* add a helm chart.
