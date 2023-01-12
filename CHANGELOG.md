@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 0.12.4
+
+- Key changes:
+  - From now on, `Authorization` header will be considered only if it's of `Bearer` type:
+    - In practical terms, it means that requests in a misconfigured setup will fail earlier than before;
+    - There's no change for properly configured setups.
+- Runtime and dependencies:
+  - Go: `1.18.2` -> `1.19.5`;
+  - Alpine: `3.15.4` -> `3.17.1`;
+  - `VictoriaMetrics/metrics`: `v1.18.1` -> `v1.23.0`;
+  - `VictoriaMetrics/metricsql` `v0.43.0` -> `v0.51.1`;
+  - `coreos/go-oidc/v3`: `v3.2.0` -> `v3.5.0`;
+  - `rs/zerolog v1.26.1`: -> `v1.28.0`;
+  - `stretchr/testify`: `v1.7.1` -> `v1.8.1`;
+  - `urfave/cli/v2`: `v2.6.0` -> `v2.23.7`.
+
 ## 0.12.3
 
 - Key changes:
