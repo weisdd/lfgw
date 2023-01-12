@@ -35,6 +35,11 @@ func (app *application) getRawAccessToken(r *http.Request) (string, error) {
 		t := r.Header.Get(h)
 
 		if h == "Authorization" {
+			// Consider only Bearer tokens
+			if !strings.HasPrefix(t, "Bearer ") {
+				continue
+			}
+
 			t = strings.TrimPrefix(t, "Bearer ")
 		}
 
