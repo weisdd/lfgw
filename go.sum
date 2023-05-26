@@ -1,8 +1,8 @@
 github.com/VictoriaMetrics/metrics v1.18.1/go.mod h1:ArjwVz7WpgpegX/JpB0zpNF2h2232kErkEnzH1sxMmA=
 github.com/VictoriaMetrics/metrics v1.24.0 h1:ILavebReOjYctAGY5QU2F9X0MYvkcrG3aEn2RKa1Zkw=
 github.com/VictoriaMetrics/metrics v1.24.0/go.mod h1:eFT25kvsTidQFHb6U0oa0rTrDRdz4xTYjpL8+UPohys=
-github.com/VictoriaMetrics/metricsql v0.56.1 h1:j+W4fA/gtozsZb4PlKDU0Ma2VOgl88xla4FEf29w94g=
-github.com/VictoriaMetrics/metricsql v0.56.1/go.mod h1:6pP1ZeLVJHqJrHlF6Ij3gmpQIznSsgktEcZgsAWYel0=
+github.com/VictoriaMetrics/metricsql v0.56.2 h1:quBAbYOlWMhmdgzFSCr1yjtVcdZYZrVQJ7nR9zor7ZM=
+github.com/VictoriaMetrics/metricsql v0.56.2/go.mod h1:6pP1ZeLVJHqJrHlF6Ij3gmpQIznSsgktEcZgsAWYel0=
 github.com/coreos/go-oidc/v3 v3.6.0 h1:AKVxfYw1Gmkn/w96z0DbT/B/xFnzTd3MkZvWLjF4n/o=
 github.com/coreos/go-oidc/v3 v3.6.0/go.mod h1:ZpHUsHBucTUj6WOkrP4E20UPynbLZzhTQ1XKCXkxyPc=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
