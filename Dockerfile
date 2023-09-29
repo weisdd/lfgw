@@ -20,7 +20,7 @@ RUN go install \
     " \
     ./...
 
-FROM alpine:3.18.2 as runtime
+FROM alpine:3.18.4 as runtime
 
 RUN set -x \
   && apk add --update --no-cache ca-certificates tzdata \
