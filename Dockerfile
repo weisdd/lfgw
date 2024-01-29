@@ -1,4 +1,4 @@
-FROM golang:1.20.6-alpine3.17 as builder
+FROM golang:1.21.6-alpine3.19 as builder
 
 ARG COMMIT
 ARG VERSION
@@ -20,7 +20,7 @@ RUN go install \
     " \
     ./...
 
-FROM alpine:3.18.2 as runtime
+FROM alpine:3.19.1 as runtime
 
 RUN set -x \
   && apk add --update --no-cache ca-certificates tzdata \
