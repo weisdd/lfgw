@@ -6,7 +6,7 @@ toolchain go1.21.6
 
 require (
 	github.com/VictoriaMetrics/metrics v1.24.0
-	github.com/VictoriaMetrics/metricsql v0.56.2
+	github.com/VictoriaMetrics/metricsql v0.70.1
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gorilla/mux v1.8.1
@@ -34,7 +34,7 @@ require (
 	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.6.0 // indirect
-	golang.org/x/sys v0.7.0 // indirect
+	golang.org/x/sys v0.10.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 )
